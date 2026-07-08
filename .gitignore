@@ -1,0 +1,9 @@
+CLAUDE.md
+.claude.local.md
+*.sqlite
+venv/
+__pycache__/
+.env
+.tracegate/
+*.egg-info/
+.pytest_cache/

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tracegate"
+version = "0.1.0"
+description = "The black box flight recorder for AI agents - record every step, detect silent failures, gate your deploys."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+tracegate = "tracegate.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tracegate"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
