@@ -1,0 +1,15 @@
+[suite]
+name = "demo agent suite"
+runs_per_case = 2
+threshold = 0.9
+
+[[case]]
+id = "cheap-flight"
+task = "Find the cheapest flight SFO->NYC under $500"
+constraints = ["under $500"]
+expect_contains = ["$420"]
+
+[[case]]
+id = "task-completion"
+task = "Book the best available option"
+expect_contains = ["Task complete"]

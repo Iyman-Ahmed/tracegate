@@ -1,0 +1,39 @@
+name: "TraceGate CI"
+description: "Replay a TraceGate suite against your agent and fail the build when the reliability score drops."
+branding:
+  icon: "shield"
+  color: "orange"
+inputs:
+  suite:
+    description: "Path to the suite TOML file"
+    required: true
+  runner:
+    description: "Runner spec: module:function or file.py:function"
+    required: true
+  threshold:
+    description: "Minimum reliability score (0-1)"
+    required: false
+    default: ""
+  install:
+    description: "pip install target for your agent project"
+    required: false
+    default: "."
+  python-version:
+    description: "Python version"
+    required: false
+    default: "3.12"
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - run: pip install tracegate "${{ inputs.install }}"
+      shell: bash
+    - run: |
+        ARGS=""
+        if [ -n "${{ inputs.threshold }}" ]; then
+          ARGS="--threshold ${{ inputs.threshold }}"
+        fi
+        tracegate ci --suite "${{ inputs.suite }}" --runner "${{ inputs.runner }}" $ARGS
+      shell: bash

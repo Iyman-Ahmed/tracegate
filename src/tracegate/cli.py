@@ -12,6 +12,10 @@ import typer
 from tracegate.detect import default_detectors, judge_detectors, run_detectors
 from tracegate.detect.judge import CachedJudge, ClaudeJudge
 from tracegate.evals import build_corpus, evaluate_detector
+from tracegate.gate.baseline import load_baseline, save_baseline
+from tracegate.gate.runner import resolve_runner, run_suite
+from tracegate.gate.suite import load_suite
+from tracegate.report import render_html, render_terminal
 from tracegate.schema import LLMCallStep, ToolCallStep
 from tracegate.store import TRACES_FILENAME
 from tracegate.store.jsonl import JSONLTraceStore
@@ -72,6 +76,66 @@ def show(trace_id: str, store_dir: Path = StoreDirOption) -> None:
     typer.echo(f"steps    {len(trace.steps)}")
     for step in trace.steps:
         typer.echo(_step_line(step))
+
+
+def _run_gate(suite_path: Path, runner_spec: str):
+    suite = load_suite(suite_path)
+    fn = resolve_runner(runner_spec)
+    return suite, run_suite(suite, fn)
+
+
+@app.command("run")
+def run_cmd(
+    suite: Path = typer.Option(..., "--suite", help="Path to suite.toml"),
+    runner: str = typer.Option(
+        ..., "--runner",
+        help="module:function or file.py:function returning an AgentTrace",
+    ),
+    report: Path = typer.Option(None, "--report", help="Write a static HTML report here."),
+) -> None:
+    """Replay a suite against your agent and print the score."""
+    _, result = _run_gate(suite, runner)
+    typer.echo(render_terminal(result))
+    if report is not None:
+        report.write_text(render_html(result), encoding="utf-8")
+        typer.echo(f"report: {report}")
+
+
+@app.command()
+def ci(
+    suite: Path = typer.Option(..., "--suite"),
+    runner: str = typer.Option(..., "--runner"),
+    threshold: float = typer.Option(
+        None, "--threshold", help="Fail if reliability score is below this."
+    ),
+    baseline: Path = typer.Option(
+        None, "--baseline", help="Baseline JSON to compare/update."
+    ),
+    update_baseline: bool = typer.Option(False, "--update-baseline"),
+    report: Path = typer.Option(None, "--report"),
+) -> None:
+    """Run the suite and exit non-zero if reliability dropped."""
+    suite_obj, result = _run_gate(suite, runner)
+    typer.echo(render_terminal(result))
+    if report is not None:
+        report.write_text(render_html(result), encoding="utf-8")
+    score = result.reliability_score
+    failed = False
+    effective = threshold if threshold is not None else suite_obj.threshold
+    if effective is not None and score < effective:
+        typer.echo(f"FAIL: score {score:.2f} below threshold {effective:.2f}")
+        failed = True
+    if baseline is not None and update_baseline:
+        save_baseline(result, baseline)
+        typer.echo(f"baseline updated: {baseline}")
+    elif baseline is not None and baseline.exists():
+        base_score = load_baseline(baseline)["reliability_score"]
+        if score < base_score - 1e-9:
+            typer.echo(f"FAIL: score {score:.2f} regressed from baseline {base_score:.2f}")
+            failed = True
+    if failed:
+        raise typer.Exit(code=1)
+    typer.echo(f"gate passed: score {score:.2f}")
 
 
 @app.command()
