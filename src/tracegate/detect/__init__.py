@@ -3,22 +3,33 @@
 from __future__ import annotations
 
 from tracegate.detect.findings import Finding, Severity
+from tracegate.detect.goal_drift import GoalDriftDetector
+from tracegate.detect.judge import Judge
 from tracegate.detect.loop import LoopDetector
 from tracegate.detect.tool_misuse import ToolMisuseDetector
+from tracegate.detect.ungrounded import UngroundedAssumptionDetector
 from tracegate.schema import AgentTrace
 
 __all__ = [
     "Finding",
-    "Severity",
+    "GoalDriftDetector",
+    "Judge",
     "LoopDetector",
+    "Severity",
     "ToolMisuseDetector",
+    "UngroundedAssumptionDetector",
     "default_detectors",
+    "judge_detectors",
     "run_detectors",
 ]
 
 
 def default_detectors() -> list:
     return [LoopDetector(), ToolMisuseDetector()]
+
+
+def judge_detectors(judge: Judge) -> list:
+    return [GoalDriftDetector(judge), UngroundedAssumptionDetector(judge)]
 
 
 def run_detectors(trace: AgentTrace, detectors: list) -> list[Finding]:
