@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+judge = ["anthropic>=0.40"]
 
 [project.scripts]
 tracegate = "tracegate.cli:app"
