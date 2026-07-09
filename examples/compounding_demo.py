@@ -66,7 +66,7 @@ def simulate(n_runs: int = 10, seed: int = 7) -> list[RunOutcome]:
     outcomes: list[RunOutcome] = []
     for n in range(n_runs):
         trace, injected = _run_agent(rng, f"complete workflow run {n + 1}")
-        findings = run_detectors(trace, detectors) if injected is not None else run_detectors(trace, detectors)
+        findings = run_detectors(trace, detectors)
         outcomes.append(RunOutcome(trace=trace, injected_step=injected, findings=findings))
     return outcomes
 
