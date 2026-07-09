@@ -9,6 +9,9 @@ from pathlib import Path
 
 import typer
 
+from tracegate.detect import default_detectors, judge_detectors, run_detectors
+from tracegate.detect.judge import CachedJudge, ClaudeJudge
+from tracegate.evals import build_corpus, evaluate_detector
 from tracegate.schema import LLMCallStep, ToolCallStep
 from tracegate.store import TRACES_FILENAME
 from tracegate.store.jsonl import JSONLTraceStore
@@ -69,6 +72,46 @@ def show(trace_id: str, store_dir: Path = StoreDirOption) -> None:
     typer.echo(f"steps    {len(trace.steps)}")
     for step in trace.steps:
         typer.echo(_step_line(step))
+
+
+@app.command()
+def detect(
+    trace_id: str,
+    store_dir: Path = StoreDirOption,
+    judge: bool = typer.Option(
+        False,
+        "--judge",
+        help="Also run LLM-judge detectors (needs ANTHROPIC_API_KEY and the 'judge' extra).",
+    ),
+) -> None:
+    """Run failure detectors over one recorded trace."""
+    try:
+        trace = _store(store_dir).load(trace_id)
+    except KeyError:
+        typer.echo(f"trace not found: {trace_id}")
+        raise typer.Exit(code=1)
+    detectors = default_detectors()
+    if judge:
+        cached = CachedJudge(ClaudeJudge(), cache_path=store_dir / "judge_cache.json")
+        detectors += judge_detectors(cached)
+    findings = run_detectors(trace, detectors)
+    if not findings:
+        typer.echo("no findings")
+        return
+    for f in findings:
+        step = f"step {f.step_index}" if f.step_index is not None else "trace"
+        typer.echo(f"[{f.severity}] {step} {f.detector}: {f.message}")
+
+
+@app.command("eval")
+def eval_cmd() -> None:
+    """Score the deterministic detectors against the built-in labeled corpus."""
+    corpus = build_corpus()
+    typer.echo(f"corpus: {len(corpus)} labeled traces")
+    typer.echo(f"{'detector':<16} {'precision':>9} {'recall':>7}")
+    for detector in default_detectors():
+        score = evaluate_detector(detector, corpus)
+        typer.echo(f"{score.detector:<16} {score.precision:>9.2f} {score.recall:>7.2f}")
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})

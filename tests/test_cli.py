@@ -68,3 +68,39 @@ def test_record_propagates_failure_exit_code(tmp_path):
         app, ["record", str(script), "--store-dir", str(tmp_path / "store")]
     )
     assert result.exit_code == 3
+
+
+def seed_loop_trace(tmp_path):
+    store = JSONLTraceStore(tmp_path / "traces.jsonl")
+    rec = TraceRecorder(task="looping", framework="test", store=store)
+    for _ in range(3):
+        rec.record_tool_call(tool_name="fetch", arguments={"u": 1}, result="pending")
+    return rec.finish()
+
+
+def test_detect_reports_findings(tmp_path):
+    trace = seed_loop_trace(tmp_path)
+    result = runner.invoke(app, ["detect", trace.trace_id, "--store-dir", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "loop" in result.output
+    assert "error" in result.output
+
+
+def test_detect_clean_trace(tmp_path):
+    trace = seed_trace(tmp_path)
+    result = runner.invoke(app, ["detect", trace.trace_id, "--store-dir", str(tmp_path)])
+    assert result.exit_code == 0
+    assert "no findings" in result.output.lower()
+
+
+def test_detect_missing_trace(tmp_path):
+    result = runner.invoke(app, ["detect", "nope", "--store-dir", str(tmp_path)])
+    assert result.exit_code == 1
+
+
+def test_eval_prints_scores():
+    result = runner.invoke(app, ["eval"])
+    assert result.exit_code == 0
+    assert "loop" in result.output
+    assert "tool_misuse" in result.output
+    assert "1.00" in result.output
