@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import typer
@@ -66,3 +69,21 @@ def show(trace_id: str, store_dir: Path = StoreDirOption) -> None:
     typer.echo(f"steps    {len(trace.steps)}")
     for step in trace.steps:
         typer.echo(_step_line(step))
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+def record(
+    ctx: typer.Context,
+    script: Path,
+    store_dir: Path = StoreDirOption,
+) -> None:
+    """Run a Python script with TraceGate recording enabled."""
+    env = {**os.environ, "TRACEGATE_DIR": str(store_dir)}
+    result = subprocess.run(
+        [sys.executable, str(script), *ctx.args], env=env
+    )
+    if result.returncode != 0:
+        raise typer.Exit(code=result.returncode)
+    count = len(_store(store_dir).list_traces())
+    plural = "" if count == 1 else "s"
+    typer.echo(f"{count} trace{plural} in {store_dir / TRACES_FILENAME}")

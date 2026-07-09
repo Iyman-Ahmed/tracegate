@@ -43,3 +43,28 @@ def test_show_missing_trace_exits_nonzero(tmp_path):
     result = runner.invoke(app, ["show", "nope", "--store-dir", str(tmp_path)])
     assert result.exit_code == 1
     assert "trace not found" in result.output
+
+
+def test_record_runs_script_and_stores_trace(tmp_path):
+    script = tmp_path / "agent.py"
+    script.write_text(
+        "from tracegate import TraceRecorder\n"
+        "with TraceRecorder(task='demo', framework='test') as rec:\n"
+        "    rec.record_llm_call(model='m', prompt='p', response='r')\n"
+    )
+    store_dir = tmp_path / "store"
+    result = runner.invoke(
+        app, ["record", str(script), "--store-dir", str(store_dir)]
+    )
+    assert result.exit_code == 0
+    assert (store_dir / "traces.jsonl").exists()
+    assert "1 trace" in result.output
+
+
+def test_record_propagates_failure_exit_code(tmp_path):
+    script = tmp_path / "boom.py"
+    script.write_text("import sys; sys.exit(3)\n")
+    result = runner.invoke(
+        app, ["record", str(script), "--store-dir", str(tmp_path / "store")]
+    )
+    assert result.exit_code == 3
