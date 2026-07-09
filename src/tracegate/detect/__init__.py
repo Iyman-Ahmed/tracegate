@@ -4,13 +4,21 @@ from __future__ import annotations
 
 from tracegate.detect.findings import Finding, Severity
 from tracegate.detect.loop import LoopDetector
+from tracegate.detect.tool_misuse import ToolMisuseDetector
 from tracegate.schema import AgentTrace
 
-__all__ = ["Finding", "Severity", "LoopDetector", "default_detectors", "run_detectors"]
+__all__ = [
+    "Finding",
+    "Severity",
+    "LoopDetector",
+    "ToolMisuseDetector",
+    "default_detectors",
+    "run_detectors",
+]
 
 
 def default_detectors() -> list:
-    return [LoopDetector()]
+    return [LoopDetector(), ToolMisuseDetector()]
 
 
 def run_detectors(trace: AgentTrace, detectors: list) -> list[Finding]:
