@@ -65,4 +65,4 @@ def test_successful_retry_not_flagged_as_misuse():
 
 def test_in_default_detectors():
     names = [d.name for d in default_detectors()]
-    assert names == ["loop", "tool_misuse"]
+    assert "tool_misuse" in names

@@ -82,9 +82,11 @@ re-check at step 6 says $580; the agent quotes $420 in the final answer.
 [7] llm:  Booked! Total charged: $420.
 ```
 
-**TraceGate detector:** *roadmap* — a contradiction detector (deterministic
-exact-value conflict check first, judge for semantic conflicts) is planned;
-the trace schema already captures everything it needs.
+**TraceGate detector:** `contradiction` (deterministic; when the same tool with
+the same arguments returns two different results, the agent holds conflicting
+evidence — a warning. When a later step still acts on the value that was
+superseded, that's an error). Semantic contradictions that aren't exact-value
+conflicts remain judge territory.
 
 ---
 

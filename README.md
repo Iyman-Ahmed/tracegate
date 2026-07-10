@@ -113,19 +113,20 @@ tracegate detect <trace_id> --judge    # + LLM-judge detectors (cached by trace 
 |----------|---------|--------|
 | `loop` | Identical steps repeated, budget burn without progress | deterministic |
 | `tool_misuse` | Ignored tool errors, blind identical retries | deterministic |
+| `contradiction` | Acting on information a later tool result contradicted | deterministic |
 | `goal_drift` | Dropped constraints, diverging objective | LLM judge |
 | `ungrounded_assumption` | Silent hallucinations — claims with no supporting evidence | LLM judge |
-| `contradiction` | Acting on information a later result contradicts | roadmap |
 
 The full failure-mode reference: [The Silent-Failure Taxonomy](docs/silent-failure-taxonomy.md).
 
 **A reliability tool must prove its own reliability.** The detectors ship with a labeled failure-injection corpus and are scored on it (`tracegate eval`):
 
 ```text
-corpus: 12 labeled traces
+corpus: 14 labeled traces
 detector         precision  recall
 loop                  1.00    1.00
 tool_misuse           1.00    1.00
+contradiction         1.00    1.00
 ```
 
 Judge-based detectors are evaluated against the same corpus when an API key is present; judge calls are cached by prompt hash so CI reruns cost nothing.
@@ -175,7 +176,7 @@ Not a hosted dashboard (local + CI first). Not an agent framework (it instrument
 
 ## Status & roadmap
 
-Phases 1–3 and 5 of the [proposal](PROPOSAL.md) are implemented: schema, recorder, adapters (Claude Agent SDK, LangGraph, OpenAI Agents SDK), JSONL/SQLite stores, deterministic + judge detectors with eval corpus, replay suites, `tracegate ci`, HTML reports, GitHub Action, pytest plugin. Next: contradiction detector, benchmark-trace findings.
+All five phases of the [proposal](PROPOSAL.md) are implemented: schema, recorder, adapters (Claude Agent SDK, LangGraph, OpenAI Agents SDK), JSONL/SQLite stores, all five detectors with a labeled eval corpus, replay suites, `tracegate ci`, HTML reports, GitHub Action, pytest plugin. See [docs/STATUS.md](docs/STATUS.md) for the build state and design decisions. Next: benchmark-trace findings, semantic contradiction via judge.
 
 ## Development
 

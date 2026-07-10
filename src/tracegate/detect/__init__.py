@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from tracegate.detect.contradiction import ContradictionDetector
 from tracegate.detect.findings import Finding, Severity
 from tracegate.detect.goal_drift import GoalDriftDetector
 from tracegate.detect.judge import Judge
@@ -11,6 +12,7 @@ from tracegate.detect.ungrounded import UngroundedAssumptionDetector
 from tracegate.schema import AgentTrace
 
 __all__ = [
+    "ContradictionDetector",
     "Finding",
     "GoalDriftDetector",
     "Judge",
@@ -25,7 +27,7 @@ __all__ = [
 
 
 def default_detectors() -> list:
-    return [LoopDetector(), ToolMisuseDetector()]
+    return [LoopDetector(), ToolMisuseDetector(), ContradictionDetector()]
 
 
 def judge_detectors(judge: Judge) -> list:

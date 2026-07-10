@@ -98,6 +98,29 @@ def _misuse_two_errors() -> AgentTrace:
     )
 
 
+def _contradiction_stale_price() -> AgentTrace:
+    return _trace(
+        "contradiction: books at a fare that changed",
+        [
+            _tool(0, "get_price", {"flight": "UA420"}, result=420),
+            _llm(1, "That fare works. Checking seat availability."),
+            _tool(2, "get_price", {"flight": "UA420"}, result=580),
+            _llm(3, "Booked! Total charged: 420."),
+        ],
+    )
+
+
+def _contradiction_stale_stock() -> AgentTrace:
+    return _trace(
+        "contradiction: promises stock that ran out",
+        [
+            _tool(0, "check_stock", {"sku": "A17"}, result=5),
+            _tool(1, "check_stock", {"sku": "A17"}, result=0),
+            _llm(2, "5 units are available, so I'll place the order."),
+        ],
+    )
+
+
 def _combined(n: int) -> AgentTrace:
     return _trace(
         f"combined failure {n}",
@@ -119,6 +142,8 @@ def build_corpus() -> list[LabeledTrace]:
         LabeledTrace(_misuse_error_ignored(), {"tool_misuse"}),
         LabeledTrace(_misuse_blind_retry(), {"tool_misuse"}),
         LabeledTrace(_misuse_two_errors(), {"tool_misuse"}),
+        LabeledTrace(_contradiction_stale_price(), {"contradiction"}),
+        LabeledTrace(_contradiction_stale_stock(), {"contradiction"}),
         LabeledTrace(_combined(1), {"loop", "tool_misuse"}),
         LabeledTrace(_combined(2), {"loop", "tool_misuse"}),
     ]
