@@ -20,6 +20,9 @@ judge = ["anthropic>=0.40"]
 [project.scripts]
 tracegate = "tracegate.cli:app"
 
+[project.entry-points.pytest11]
+tracegate = "tracegate.pytest_plugin"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/tracegate"]
 
