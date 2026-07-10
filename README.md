@@ -60,6 +60,38 @@ async for message in record_stream(query(prompt=prompt), recorder):
     ...  # use messages exactly as before; the trace saves itself
 ```
 
+LangGraph — wrap the stream:
+
+```python
+from tracegate import TraceRecorder
+from tracegate.adapters.langgraph import record_langgraph_stream
+
+recorder = TraceRecorder(task=task, framework="langgraph")
+for update in record_langgraph_stream(graph.stream(inputs), recorder):
+    ...  # use updates exactly as before
+```
+
+OpenAI Agents SDK — record a completed run:
+
+```python
+from tracegate import TraceRecorder
+from tracegate.adapters.openai_agents import record_run
+
+recorder = TraceRecorder(task=task, framework="openai-agents")
+result = await Runner.run(agent, task)
+record_run(result, recorder)
+```
+
+All adapters are duck-typed — TraceGate has **zero** hard framework dependencies.
+
+In pytest — a `trace_recorder` fixture registers automatically when tracegate is installed:
+
+```python
+def test_my_agent(trace_recorder):
+    trace_recorder.record_llm_call(model="...", prompt="...", response="...")
+    # trace saves on teardown; inspect it later with `tracegate show`
+```
+
 Or wrap any script without touching its code:
 
 ```bash
@@ -143,7 +175,7 @@ Not a hosted dashboard (local + CI first). Not an agent framework (it instrument
 
 ## Status & roadmap
 
-Phases 1–3 of the [proposal](PROPOSAL.md) are implemented: schema, recorder, Claude Agent SDK adapter, JSONL/SQLite stores, deterministic + judge detectors with eval corpus, replay suites, `tracegate ci`, HTML reports, GitHub Action. Next: contradiction detector, LangGraph + OpenAI Agents adapters, pytest plugin.
+Phases 1–3 and 5 of the [proposal](PROPOSAL.md) are implemented: schema, recorder, adapters (Claude Agent SDK, LangGraph, OpenAI Agents SDK), JSONL/SQLite stores, deterministic + judge detectors with eval corpus, replay suites, `tracegate ci`, HTML reports, GitHub Action, pytest plugin. Next: contradiction detector, benchmark-trace findings.
 
 ## Development
 
