@@ -11,7 +11,7 @@ import typer
 
 from tracegate.detect import default_detectors, judge_detectors, run_detectors
 from tracegate.detect.judge import CachedJudge, ClaudeJudge
-from tracegate.evals import build_corpus, evaluate_detector
+from tracegate.evals import build_corpus, build_judge_corpus, evaluate_detector
 from tracegate.gate.baseline import load_baseline, save_baseline
 from tracegate.gate.runner import resolve_runner, run_suite
 from tracegate.gate.suite import load_suite
@@ -167,15 +167,44 @@ def detect(
         typer.echo(f"[{f.severity}] {step} {f.detector}: {f.message}")
 
 
-@app.command("eval")
-def eval_cmd() -> None:
-    """Score the deterministic detectors against the built-in labeled corpus."""
-    corpus = build_corpus()
-    typer.echo(f"corpus: {len(corpus)} labeled traces")
-    typer.echo(f"{'detector':<16} {'precision':>9} {'recall':>7}")
-    for detector in default_detectors():
+def _print_scores(detectors, corpus) -> None:
+    for detector in detectors:
         score = evaluate_detector(detector, corpus)
-        typer.echo(f"{score.detector:<16} {score.precision:>9.2f} {score.recall:>7.2f}")
+        typer.echo(f"{score.detector:<22} {score.precision:>9.2f} {score.recall:>7.2f}")
+
+
+@app.command("eval")
+def eval_cmd(
+    judge: bool = typer.Option(
+        False,
+        "--judge",
+        help="Also score the LLM-judge detectors (needs ANTHROPIC_API_KEY and the 'judge' extra).",
+    ),
+    store_dir: Path = StoreDirOption,
+) -> None:
+    """Score the detectors against the built-in labeled corpora."""
+    corpus = build_corpus()
+    typer.echo(f"deterministic corpus: {len(corpus)} labeled traces")
+    typer.echo(f"{'detector':<22} {'precision':>9} {'recall':>7}")
+    _print_scores(default_detectors(), corpus)
+
+    if not judge:
+        return
+
+    try:
+        cached = CachedJudge(ClaudeJudge(), cache_path=store_dir / "eval_judge_cache.json")
+    except ImportError as exc:
+        typer.echo(f"\njudge eval unavailable: {exc}")
+        raise typer.Exit(code=1)
+
+    judge_corpus = build_judge_corpus()
+    typer.echo(f"\njudge corpus: {len(judge_corpus)} labeled traces")
+    typer.echo(f"{'detector':<22} {'precision':>9} {'recall':>7}")
+    try:
+        _print_scores(judge_detectors(cached), judge_corpus)
+    except Exception as exc:  # network/auth failures shouldn't spew a traceback
+        typer.echo(f"\njudge eval failed: {type(exc).__name__}: {exc}")
+        raise typer.Exit(code=1)
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})

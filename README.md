@@ -129,7 +129,7 @@ tool_misuse           1.00    1.00
 contradiction         1.00    1.00
 ```
 
-Judge-based detectors are evaluated against the same corpus when an API key is present; judge calls are cached by prompt hash so CI reruns cost nothing.
+Judge-based detectors have their own labeled corpus, scored with `tracegate eval --judge` (needs an API key); judge calls are cached by prompt hash so reruns cost nothing. The eval harness is validated in CI with scripted judges, so the plumbing is covered even without a key.
 
 ## Layer 3 — Gate
 

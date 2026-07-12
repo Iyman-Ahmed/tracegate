@@ -1,3 +1,5 @@
+import sys
+
 from typer.testing import CliRunner
 
 from tracegate.cli import app
@@ -103,4 +105,17 @@ def test_eval_prints_scores():
     assert result.exit_code == 0
     assert "loop" in result.output
     assert "tool_misuse" in result.output
+    assert "contradiction" in result.output
     assert "1.00" in result.output
+
+
+def test_eval_judge_without_dependency_fails_cleanly(monkeypatch):
+    # Force the ImportError path so the test is deterministic whether or not
+    # the anthropic package is installed: --judge should print a clear message
+    # and exit 1, never a traceback.
+    monkeypatch.setitem(sys.modules, "anthropic", None)
+    result = runner.invoke(app, ["eval", "--judge"])
+    assert result.exit_code == 1
+    assert "judge" in result.output.lower()
+    # deterministic scores still print before the judge attempt
+    assert "loop" in result.output
