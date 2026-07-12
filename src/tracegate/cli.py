@@ -10,7 +10,7 @@ from pathlib import Path
 import typer
 
 from tracegate.detect import default_detectors, judge_detectors, run_detectors
-from tracegate.detect.judge import CachedJudge, ClaudeJudge
+from tracegate.detect.judge import CachedJudge, ClaudeJudge, OpenAICompatibleJudge
 from tracegate.evals import build_corpus, build_judge_corpus, evaluate_detector
 from tracegate.gate.baseline import load_baseline, save_baseline
 from tracegate.gate.runner import resolve_runner, run_suite
@@ -138,6 +138,27 @@ def ci(
     typer.echo(f"gate passed: score {score:.2f}")
 
 
+JudgeUrlOption = typer.Option(
+    None,
+    "--judge-url",
+    help="OpenAI-compatible endpoint for the judge (e.g. LM Studio http://localhost:1234/v1). Omit to use the Claude API.",
+)
+JudgeModelOption = typer.Option(
+    None, "--judge-model", help="Model id for the judge backend."
+)
+
+
+def _build_judge(judge_url: str | None, judge_model: str | None, cache_path: Path):
+    """Construct the judge backend the user asked for, wrapped in the disk cache."""
+    if judge_url:
+        if not judge_model:
+            raise typer.BadParameter("--judge-model is required with --judge-url")
+        inner = OpenAICompatibleJudge(model=judge_model, base_url=judge_url)
+    else:
+        inner = ClaudeJudge(model=judge_model or "claude-opus-4-8")
+    return CachedJudge(inner, cache_path=cache_path)
+
+
 @app.command()
 def detect(
     trace_id: str,
@@ -145,8 +166,10 @@ def detect(
     judge: bool = typer.Option(
         False,
         "--judge",
-        help="Also run LLM-judge detectors (needs ANTHROPIC_API_KEY and the 'judge' extra).",
+        help="Also run LLM-judge detectors (Claude API by default, or --judge-url for a local model).",
     ),
+    judge_url: str = JudgeUrlOption,
+    judge_model: str = JudgeModelOption,
 ) -> None:
     """Run failure detectors over one recorded trace."""
     try:
@@ -156,7 +179,7 @@ def detect(
         raise typer.Exit(code=1)
     detectors = default_detectors()
     if judge:
-        cached = CachedJudge(ClaudeJudge(), cache_path=store_dir / "judge_cache.json")
+        cached = _build_judge(judge_url, judge_model, store_dir / "judge_cache.json")
         detectors += judge_detectors(cached)
     findings = run_detectors(trace, detectors)
     if not findings:
@@ -178,8 +201,10 @@ def eval_cmd(
     judge: bool = typer.Option(
         False,
         "--judge",
-        help="Also score the LLM-judge detectors (needs ANTHROPIC_API_KEY and the 'judge' extra).",
+        help="Also score the LLM-judge detectors (Claude API by default, or --judge-url for a local model).",
     ),
+    judge_url: str = JudgeUrlOption,
+    judge_model: str = JudgeModelOption,
     store_dir: Path = StoreDirOption,
 ) -> None:
     """Score the detectors against the built-in labeled corpora."""
@@ -192,7 +217,7 @@ def eval_cmd(
         return
 
     try:
-        cached = CachedJudge(ClaudeJudge(), cache_path=store_dir / "eval_judge_cache.json")
+        cached = _build_judge(judge_url, judge_model, store_dir / "eval_judge_cache.json")
     except ImportError as exc:
         typer.echo(f"\njudge eval unavailable: {exc}")
         raise typer.Exit(code=1)

@@ -106,8 +106,17 @@ Traces land in `.tracegate/traces.jsonl` (override with `TRACEGATE_DIR`).
 
 ```bash
 tracegate detect <trace_id>            # deterministic detectors (free, instant)
-tracegate detect <trace_id> --judge    # + LLM-judge detectors (cached by trace content)
+tracegate detect <trace_id> --judge    # + LLM-judge detectors (Claude API, cached by trace content)
 ```
+
+The judge is pluggable. Point it at any **OpenAI-compatible** endpoint — LM Studio, Ollama, vLLM — to run the semantic detectors against a **local** model with no API key and nothing leaving your machine:
+
+```bash
+tracegate detect <trace_id> --judge \
+  --judge-url http://localhost:1234/v1 --judge-model qwen2.5-7b-instruct-1m
+```
+
+This backend uses only the standard library — no extra dependency. (Local 7B models tend toward high recall but lower precision on the judge detectors; use a stronger model when precision matters for gating.)
 
 | Detector | Catches | Method |
 |----------|---------|--------|
@@ -129,7 +138,7 @@ tool_misuse           1.00    1.00
 contradiction         1.00    1.00
 ```
 
-Judge-based detectors have their own labeled corpus, scored with `tracegate eval --judge` (needs an API key); judge calls are cached by prompt hash so reruns cost nothing. The eval harness is validated in CI with scripted judges, so the plumbing is covered even without a key.
+Judge-based detectors have their own labeled corpus, scored with `tracegate eval --judge`; add `--judge-url`/`--judge-model` to score them with a **local** model instead of the Claude API. Judge calls are cached by prompt hash so reruns cost nothing. The eval harness is validated in CI with scripted judges, so the plumbing is covered without any model at all.
 
 ## Layer 3 — Gate
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import urllib.request
 from pathlib import Path
 from typing import Protocol
 
@@ -79,3 +80,56 @@ class ClaudeJudge:
         return "".join(
             block.text for block in response.content if block.type == "text"
         )
+
+
+class OpenAICompatibleJudge:
+    """Judge backed by any OpenAI-compatible chat endpoint.
+
+    Works with LM Studio, Ollama, vLLM, llama.cpp server, etc. Uses only the
+    standard library (urllib), so no extra dependency and no data leaves the
+    machine when the endpoint is local -- the same local-first wedge the rest
+    of TraceGate is built on. Defaults target LM Studio's server.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        base_url: str = "http://localhost:1234/v1",
+        api_key: str | None = None,
+        timeout: float = 120.0,
+    ) -> None:
+        self._model = model
+        self._endpoint = base_url.rstrip("/") + "/chat/completions"
+        self._api_key = api_key
+        self._timeout = timeout
+
+    def _payload(self, prompt: str) -> dict:
+        return {
+            "model": self._model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+            "stream": False,
+        }
+
+    @staticmethod
+    def _extract(data: dict) -> str:
+        choices = data.get("choices") or []
+        if not choices:
+            return ""
+        return choices[0].get("message", {}).get("content", "") or ""
+
+    def _post(self, payload: dict) -> dict:
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        request = urllib.request.Request(  # noqa: S310 (user-configured endpoint)
+            self._endpoint,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=self._timeout) as response:
+            return json.loads(response.read().decode("utf-8"))
+
+    def complete(self, prompt: str) -> str:
+        return self._extract(self._post(self._payload(prompt)))
