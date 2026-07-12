@@ -54,9 +54,13 @@ venv/bin/python examples/compounding_demo.py       # the flagship demo
 venv/bin/tracegate ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent
 ```
 
+## Published
+
+Live at **https://github.com/Iyman-Ahmed/tracegate** (public), default branch `main`, with `phases-2-5` also pushed. Both branches point at the same commit, so `main` is the source of truth. The README's `uses: Iyman-Ahmed/tracegate@main` Action reference resolves.
+
 ## What to do next
 
-1. **Merge and publish** — `phases-2-5` → `master`, then create the GitHub repo and push. The Action's `uses: Iyman-Ahmed/tracegate@main` reference in the README only resolves once the repo exists.
-2. **Benchmark findings** — run the detectors over published agent-benchmark traces (GAIA, SWE-bench) and write up how many failing runs contain a silent hallucination, and at which step. This is the research-flavored content the proposal identifies as citation bait.
-3. **Semantic contradiction** — the current detector catches exact-value conflicts only. A judge pass would catch "the flight is cheap" against a $900 fare.
-4. **Publish judge numbers** — the judge-eval harness and corpus exist (`tracegate eval --judge`); running it once against a live key and pasting the precision/recall into the README is all that's left to complete the eval story for all five detectors.
+1. **Benchmark findings** — run the detectors over published agent-benchmark traces (GAIA, SWE-bench) and write up how many failing runs contain a silent hallucination, and at which step. This is the research-flavored content the proposal identifies as citation bait.
+2. **Semantic contradiction** — the current detector catches exact-value conflicts only. A judge pass would catch "the flight is cheap" against a $900 fare.
+3. **Publish judge numbers** — the judge-eval harness and corpus exist (`tracegate eval --judge`); running it once against a live key and pasting the precision/recall into the README is all that's left to complete the eval story for all five detectors.
+4. **PyPI** — the package is `pip install -e .` only. Publishing `tracegate` to PyPI makes the Action's `pip install tracegate` line work for external users.
