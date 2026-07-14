@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from tracegate.adapters.openai_agents import OpenAIAgentsAdapter, record_run
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import LLMCallStep, ToolCallStep
+from agentgates.adapters.openai_agents import OpenAIAgentsAdapter, record_run
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import LLMCallStep, ToolCallStep
 
 
 # Stubs mirroring openai-agents RunItem shapes (name-based dispatch).

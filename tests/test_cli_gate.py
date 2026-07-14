@@ -1,6 +1,6 @@
 from typer.testing import CliRunner
 
-from tracegate.cli import app
+from agentgates.cli import app
 
 runner = CliRunner()
 

@@ -2,16 +2,16 @@
 
 These tests validate the eval *harness* over judge-based detectors using
 scripted judges — deterministic, no network. Real precision/recall numbers
-require a live model (`tracegate eval --judge`); the harness that produces
+require a live model (`agentgates eval --judge`); the harness that produces
 them is what's exercised here.
 """
 
 import json
 
-from tracegate.detect import judge_detectors
-from tracegate.detect.goal_drift import GoalDriftDetector
-from tracegate.detect.ungrounded import UngroundedAssumptionDetector
-from tracegate.evals import build_judge_corpus, evaluate_detector
+from agentgates.detect import judge_detectors
+from agentgates.detect.goal_drift import GoalDriftDetector
+from agentgates.detect.ungrounded import UngroundedAssumptionDetector
+from agentgates.evals import build_judge_corpus, evaluate_detector
 
 
 class ScriptedJudge:

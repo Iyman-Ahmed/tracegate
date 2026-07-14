@@ -25,7 +25,7 @@ def test_simulation_is_deterministic_and_detectable():
     for outcome in failed:
         # every run still *looks* successful...
         assert "Task complete" in outcome.trace.steps[-1].response
-        # ...but TraceGate pinpoints the originating step
+        # ...but AgentGates pinpoints the originating step
         assert any(f.step_index == outcome.injected_step for f in outcome.findings)
 
     for outcome in clean:

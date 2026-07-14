@@ -1,5 +1,5 @@
-from tracegate.detect import Finding
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.detect import Finding
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
 
 
 def err(msg="e"):

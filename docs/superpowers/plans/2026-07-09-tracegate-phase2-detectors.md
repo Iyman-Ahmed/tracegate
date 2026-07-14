@@ -1,16 +1,16 @@
-# TraceGate Phase 2 (Detectors) Implementation Plan
+# AgentGates Phase 2 (Detectors) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build TraceGate's Detect layer: typed findings, deterministic loop + tool-misuse detectors, LLM-judge goal-drift + ungrounded-assumption detectors behind a model-agnostic cached Judge interface, a labeled failure-injection eval corpus with precision/recall metrics, and CLI `detect` + `eval` commands.
+**Goal:** Build AgentGates's Detect layer: typed findings, deterministic loop + tool-misuse detectors, LLM-judge goal-drift + ungrounded-assumption detectors behind a model-agnostic cached Judge interface, a labeled failure-injection eval corpus with precision/recall metrics, and CLI `detect` + `eval` commands.
 
-**Architecture:** Detectors implement `detect(trace) -> list[Finding]` with `.name`. Deterministic detectors run by default (zero cost); judge detectors take a `Judge` (protocol: `complete(prompt) -> str`) so tests use fakes and production uses `ClaudeJudge` (optional `anthropic` extra) wrapped in `CachedJudge` (prompt-hash cache, disk-persisted so CI reruns are cheap). The eval corpus is generated in code (`tracegate.evals`) — "eval the evaluator" per the proposal.
+**Architecture:** Detectors implement `detect(trace) -> list[Finding]` with `.name`. Deterministic detectors run by default (zero cost); judge detectors take a `Judge` (protocol: `complete(prompt) -> str`) so tests use fakes and production uses `ClaudeJudge` (optional `anthropic` extra) wrapped in `CachedJudge` (prompt-hash cache, disk-persisted so CI reruns are cheap). The eval corpus is generated in code (`agentgates.evals`) — "eval the evaluator" per the proposal.
 
 **Tech Stack:** Existing Phase 1 stack. New optional extra: `anthropic>=0.40` under `[project.optional-dependencies] judge`. Judge default model `claude-opus-4-8` via `client.messages.create` (no sampling params — they 400 on Opus 4.8).
 
 ## Global Constraints
 
-- No new required runtime deps; `anthropic` is optional (`pip install "tracegate[judge]"`), imported lazily inside `ClaudeJudge.__init__` with a helpful ImportError.
+- No new required runtime deps; `anthropic` is optional (`pip install "agentgates[judge]"`), imported lazily inside `ClaudeJudge.__init__` with a helpful ImportError.
 - No network in tests: judge detectors tested with fakes; `ClaudeJudge` has no unit test (thin wrapper, exercised only when a real key is present).
 - Work on branch `phases-2-5`; run `venv/bin/pytest` from the project root; commits end with `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
 - Detector contract: attribute `name: str`, method `detect(trace: AgentTrace) -> list[Finding]`.
@@ -20,24 +20,24 @@
 ### Task 1: Findings model + loop detector
 
 **Files:**
-- Create: `src/tracegate/detect/__init__.py`
-- Create: `src/tracegate/detect/findings.py`
-- Create: `src/tracegate/detect/loop.py`
+- Create: `src/agentgates/detect/__init__.py`
+- Create: `src/agentgates/detect/findings.py`
+- Create: `src/agentgates/detect/loop.py`
 - Test: `tests/test_detect_loop.py`
 
 **Interfaces:**
 - Produces:
-  - `Finding(detector: str, severity: Literal["info","warning","error"], message: str, step_index: int | None = None, confidence: float = 1.0)` — Pydantic model in `tracegate.detect.findings`; also exported from `tracegate.detect`.
+  - `Finding(detector: str, severity: Literal["info","warning","error"], message: str, step_index: int | None = None, confidence: float = 1.0)` — Pydantic model in `agentgates.detect.findings`; also exported from `agentgates.detect`.
   - `LoopDetector(threshold: int = 3)` with `name = "loop"`; error finding for >= threshold identical *consecutive* steps; warning for >= threshold identical tool calls anywhere (skipped if already reported consecutively).
   - `run_detectors(trace, detectors) -> list[Finding]` (sorted by step_index, None first) and `default_detectors() -> list` (loop + tool_misuse; tool_misuse added in Task 2 — in this task return `[LoopDetector()]`).
-  - Step fingerprint helper `tracegate.detect.loop._fingerprint(step) -> str` (tool: name + sorted-args JSON; llm: response text).
+  - Step fingerprint helper `agentgates.detect.loop._fingerprint(step) -> str` (tool: name + sorted-args JSON; llm: response text).
 
 - [ ] **Step 1: Write the failing tests** — `tests/test_detect_loop.py`:
 
 ```python
-from tracegate.detect import Finding, run_detectors
-from tracegate.detect.loop import LoopDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
+from agentgates.detect import Finding, run_detectors
+from agentgates.detect.loop import LoopDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
 
 
 def make_trace(steps) -> AgentTrace:
@@ -109,9 +109,9 @@ def test_run_detectors_sorts_by_step_index():
     assert [f.step_index for f in findings] == [1, 5]
 ```
 
-- [ ] **Step 2: Run to verify failure** — `venv/bin/pytest tests/test_detect_loop.py` → `ModuleNotFoundError: No module named 'tracegate.detect'`
+- [ ] **Step 2: Run to verify failure** — `venv/bin/pytest tests/test_detect_loop.py` → `ModuleNotFoundError: No module named 'agentgates.detect'`
 
-- [ ] **Step 3: Implement** — `src/tracegate/detect/findings.py`:
+- [ ] **Step 3: Implement** — `src/agentgates/detect/findings.py`:
 
 ```python
 """Typed findings emitted by detectors."""
@@ -133,7 +133,7 @@ class Finding(BaseModel):
     confidence: float = 1.0
 ```
 
-`src/tracegate/detect/loop.py`:
+`src/agentgates/detect/loop.py`:
 
 ```python
 """Deterministic loop/stall detector: repeated identical steps."""
@@ -143,8 +143,8 @@ from __future__ import annotations
 import json
 from collections import Counter
 
-from tracegate.detect.findings import Finding
-from tracegate.schema import AgentTrace, LLMCallStep, ToolCallStep
+from agentgates.detect.findings import Finding
+from agentgates.schema import AgentTrace, LLMCallStep, ToolCallStep
 
 
 def _fingerprint(step) -> str:
@@ -204,16 +204,16 @@ class LoopDetector:
         return findings
 ```
 
-`src/tracegate/detect/__init__.py`:
+`src/agentgates/detect/__init__.py`:
 
 ```python
 """Detect layer: analyzers that flag silent failures in an AgentTrace."""
 
 from __future__ import annotations
 
-from tracegate.detect.findings import Finding, Severity
-from tracegate.detect.loop import LoopDetector
-from tracegate.schema import AgentTrace
+from agentgates.detect.findings import Finding, Severity
+from agentgates.detect.loop import LoopDetector
+from agentgates.schema import AgentTrace
 
 __all__ = ["Finding", "Severity", "LoopDetector", "default_detectors", "run_detectors"]
 
@@ -233,15 +233,15 @@ def run_detectors(trace: AgentTrace, detectors: list) -> list[Finding]:
 ```
 
 - [ ] **Step 4: Run to verify pass** — `venv/bin/pytest tests/test_detect_loop.py -v` → 7 passed
-- [ ] **Step 5: Commit** — `git add src/tracegate/detect/ tests/test_detect_loop.py && git commit -m "feat: Finding model and deterministic loop detector"` (+ trailer)
+- [ ] **Step 5: Commit** — `git add src/agentgates/detect/ tests/test_detect_loop.py && git commit -m "feat: Finding model and deterministic loop detector"` (+ trailer)
 
 ---
 
 ### Task 2: Tool-misuse detector
 
 **Files:**
-- Create: `src/tracegate/detect/tool_misuse.py`
-- Modify: `src/tracegate/detect/__init__.py` (add to exports + `default_detectors`)
+- Create: `src/agentgates/detect/tool_misuse.py`
+- Modify: `src/agentgates/detect/__init__.py` (add to exports + `default_detectors`)
 - Test: `tests/test_detect_tool_misuse.py`
 
 **Interfaces:**
@@ -250,9 +250,9 @@ def run_detectors(trace: AgentTrace, detectors: list) -> list[Finding]:
 - [ ] **Step 1: Write the failing tests** — `tests/test_detect_tool_misuse.py`:
 
 ```python
-from tracegate.detect import default_detectors
-from tracegate.detect.tool_misuse import ToolMisuseDetector
-from tracegate.schema import AgentInfo, AgentTrace, TaskSpec, ToolCallStep
+from agentgates.detect import default_detectors
+from agentgates.detect.tool_misuse import ToolMisuseDetector
+from agentgates.schema import AgentInfo, AgentTrace, TaskSpec, ToolCallStep
 
 
 def make_trace(steps) -> AgentTrace:
@@ -320,8 +320,8 @@ def test_in_default_detectors():
     assert names == ["loop", "tool_misuse"]
 ```
 
-- [ ] **Step 2: Run to verify failure** — `ModuleNotFoundError: No module named 'tracegate.detect.tool_misuse'`
-- [ ] **Step 3: Implement** — `src/tracegate/detect/tool_misuse.py`:
+- [ ] **Step 2: Run to verify failure** — `ModuleNotFoundError: No module named 'agentgates.detect.tool_misuse'`
+- [ ] **Step 3: Implement** — `src/agentgates/detect/tool_misuse.py`:
 
 ```python
 """Deterministic tool-misuse detector: errors and blind retries."""
@@ -330,8 +330,8 @@ from __future__ import annotations
 
 import json
 
-from tracegate.detect.findings import Finding
-from tracegate.schema import AgentTrace, ToolCallStep
+from agentgates.detect.findings import Finding
+from agentgates.schema import AgentTrace, ToolCallStep
 
 
 class ToolMisuseDetector:
@@ -372,7 +372,7 @@ class ToolMisuseDetector:
         return findings
 ```
 
-In `src/tracegate/detect/__init__.py`: import `ToolMisuseDetector`, add to `__all__`, and change `default_detectors` to `return [LoopDetector(), ToolMisuseDetector()]`.
+In `src/agentgates/detect/__init__.py`: import `ToolMisuseDetector`, add to `__all__`, and change `default_detectors` to `return [LoopDetector(), ToolMisuseDetector()]`.
 
 - [ ] **Step 4: Run to verify pass** — `venv/bin/pytest tests/test_detect_tool_misuse.py tests/test_detect_loop.py -v` → all pass
 - [ ] **Step 5: Commit** — `feat: deterministic tool-misuse detector`
@@ -382,23 +382,23 @@ In `src/tracegate/detect/__init__.py`: import `ToolMisuseDetector`, add to `__al
 ### Task 3: Judge interface (protocol, JSON extraction, cache, Claude judge)
 
 **Files:**
-- Create: `src/tracegate/detect/judge.py`
+- Create: `src/agentgates/detect/judge.py`
 - Modify: `pyproject.toml` (add `[project.optional-dependencies] judge = ["anthropic>=0.40"]`)
 - Test: `tests/test_detect_judge.py`
 
 **Interfaces:**
-- Produces (`tracegate.detect.judge`):
+- Produces (`agentgates.detect.judge`):
   - `Judge` — `typing.Protocol` with `complete(self, prompt: str) -> str`.
   - `extract_json(text: str) -> dict` — parses the first `{...}` JSON object in text; `{}` on failure.
   - `CachedJudge(inner: Judge, cache_path: Path | None = None)` — memoizes by sha256(prompt); persists to `cache_path` JSON when given.
-  - `ClaudeJudge(model: str = "claude-opus-4-8")` — lazy `import anthropic` (ImportError message mentions `pip install "tracegate[judge]"`); `complete` calls `client.messages.create(model, max_tokens=1024, messages=[{"role": "user", "content": prompt}])` and joins `text`-type blocks.
+  - `ClaudeJudge(model: str = "claude-opus-4-8")` — lazy `import anthropic` (ImportError message mentions `pip install "agentgates[judge]"`); `complete` calls `client.messages.create(model, max_tokens=1024, messages=[{"role": "user", "content": prompt}])` and joins `text`-type blocks.
 
 - [ ] **Step 1: Write the failing tests** — `tests/test_detect_judge.py`:
 
 ```python
 import json
 
-from tracegate.detect.judge import CachedJudge, extract_json
+from agentgates.detect.judge import CachedJudge, extract_json
 
 
 class CountingJudge:
@@ -448,13 +448,13 @@ def test_cached_judge_persists_to_disk(tmp_path):
     assert inner2.calls == 0
 ```
 
-- [ ] **Step 2: Run to verify failure** — `ModuleNotFoundError: No module named 'tracegate.detect.judge'`
-- [ ] **Step 3: Implement** — `src/tracegate/detect/judge.py`:
+- [ ] **Step 2: Run to verify failure** — `ModuleNotFoundError: No module named 'agentgates.detect.judge'`
+- [ ] **Step 3: Implement** — `src/agentgates/detect/judge.py`:
 
 ```python
 """LLM-judge interface: model-agnostic, cached by prompt hash.
 
-Deterministic checks run first everywhere in TraceGate; judges are only for
+Deterministic checks run first everywhere in AgentGates; judges are only for
 semantics (drift, groundedness). CachedJudge keys by prompt content hash so
 CI reruns are cheap and deterministic.
 """
@@ -519,7 +519,7 @@ class ClaudeJudge:
         except ImportError as e:
             raise ImportError(
                 "ClaudeJudge requires the anthropic package:"
-                ' pip install "tracegate[judge]"'
+                ' pip install "agentgates[judge]"'
             ) from e
         self._client = anthropic.Anthropic()
         self._model = model
@@ -545,20 +545,20 @@ Add to `pyproject.toml` under `[project.optional-dependencies]`: `judge = ["anth
 ### Task 4: Goal-drift detector (judge-based)
 
 **Files:**
-- Create: `src/tracegate/detect/goal_drift.py`
-- Create: `src/tracegate/detect/_summary.py` (shared step summarizer)
+- Create: `src/agentgates/detect/goal_drift.py`
+- Create: `src/agentgates/detect/_summary.py` (shared step summarizer)
 - Test: `tests/test_detect_goal_drift.py`
 
 **Interfaces:**
 - Produces:
-  - `tracegate.detect._summary.summarize_step(step) -> str` — `[i] llm: <response[:200]>` / `[i] tool <name>({args}) -> <error or result, [:200]>`.
+  - `agentgates.detect._summary.summarize_step(step) -> str` — `[i] llm: <response[:200]>` / `[i] tool <name>({args}) -> <error or result, [:200]>`.
   - `GoalDriftDetector(judge: Judge)` with `name = "goal_drift"`. One judge call per trace; prompt includes task description, constraints, numbered steps; expects JSON `{"drifted": bool, "step_index": int|null, "dropped_constraints": [...], "reasoning": str}`. Emits one error finding (confidence 0.8) when drifted, else [].
 
 - [ ] **Step 1: Write the failing tests** — `tests/test_detect_goal_drift.py`:
 
 ```python
-from tracegate.detect.goal_drift import GoalDriftDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec
+from agentgates.detect.goal_drift import GoalDriftDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec
 
 
 class FakeJudge:
@@ -619,14 +619,14 @@ def test_empty_trace_skips_judge():
 ```
 
 - [ ] **Step 2: Run to verify failure** — ModuleNotFoundError
-- [ ] **Step 3: Implement** — `src/tracegate/detect/_summary.py`:
+- [ ] **Step 3: Implement** — `src/agentgates/detect/_summary.py`:
 
 ```python
 """Shared plain-text step summaries for judge prompts."""
 
 from __future__ import annotations
 
-from tracegate.schema import LLMCallStep, ToolCallStep
+from agentgates.schema import LLMCallStep, ToolCallStep
 
 
 def summarize_step(step) -> str:
@@ -638,17 +638,17 @@ def summarize_step(step) -> str:
     return f"[{step.index}] {step.type}"
 ```
 
-`src/tracegate/detect/goal_drift.py`:
+`src/agentgates/detect/goal_drift.py`:
 
 ```python
 """Judge-based goal-drift detector: dropped constraints, diverging objective."""
 
 from __future__ import annotations
 
-from tracegate.detect._summary import summarize_step
-from tracegate.detect.findings import Finding
-from tracegate.detect.judge import Judge, extract_json
-from tracegate.schema import AgentTrace
+from agentgates.detect._summary import summarize_step
+from agentgates.detect.findings import Finding
+from agentgates.detect.judge import Judge, extract_json
+from agentgates.schema import AgentTrace
 
 _PROMPT = """You are auditing an AI agent's execution trace for goal drift.
 
@@ -703,21 +703,21 @@ class GoalDriftDetector:
 ### Task 5: Ungrounded-assumption detector (judge-based)
 
 **Files:**
-- Create: `src/tracegate/detect/ungrounded.py`
-- Modify: `src/tracegate/detect/__init__.py` (export judge detectors + `judge_detectors(judge)` helper)
+- Create: `src/agentgates/detect/ungrounded.py`
+- Modify: `src/agentgates/detect/__init__.py` (export judge detectors + `judge_detectors(judge)` helper)
 - Test: `tests/test_detect_ungrounded.py`
 
 **Interfaces:**
 - Produces:
   - `UngroundedAssumptionDetector(judge)` with `name = "ungrounded_assumption"`. Walks steps in order accumulating evidence (task description + each tool result/error); for each `LLMCallStep` makes one judge call with evidence-so-far + the message; expects JSON `{"ungrounded_claims": ["..."], "reasoning": str}`; one error finding per claim (confidence 0.8) at that step.
-  - `tracegate.detect.judge_detectors(judge) -> list` returning `[GoalDriftDetector(judge), UngroundedAssumptionDetector(judge)]`.
+  - `agentgates.detect.judge_detectors(judge) -> list` returning `[GoalDriftDetector(judge), UngroundedAssumptionDetector(judge)]`.
 
 - [ ] **Step 1: Write the failing tests** — `tests/test_detect_ungrounded.py`:
 
 ```python
-from tracegate.detect import judge_detectors
-from tracegate.detect.ungrounded import UngroundedAssumptionDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
+from agentgates.detect import judge_detectors
+from agentgates.detect.ungrounded import UngroundedAssumptionDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
 
 
 class FakeJudge:
@@ -778,17 +778,17 @@ def test_judge_detectors_factory():
 ```
 
 - [ ] **Step 2: Run to verify failure** — ModuleNotFoundError
-- [ ] **Step 3: Implement** — `src/tracegate/detect/ungrounded.py`:
+- [ ] **Step 3: Implement** — `src/agentgates/detect/ungrounded.py`:
 
 ```python
 """Judge-based silent-hallucination detector: claims with no supporting evidence."""
 
 from __future__ import annotations
 
-from tracegate.detect._summary import summarize_step
-from tracegate.detect.findings import Finding
-from tracegate.detect.judge import Judge, extract_json
-from tracegate.schema import AgentTrace, LLMCallStep
+from agentgates.detect._summary import summarize_step
+from agentgates.detect.findings import Finding
+from agentgates.detect.judge import Judge, extract_json
+from agentgates.schema import AgentTrace, LLMCallStep
 
 _PROMPT = """You are auditing one message from an AI agent for ungrounded assumptions \
 (silent hallucinations): factual claims that appear in none of the evidence available \
@@ -834,7 +834,7 @@ class UngroundedAssumptionDetector:
         return findings
 ```
 
-In `src/tracegate/detect/__init__.py`: import `GoalDriftDetector`, `UngroundedAssumptionDetector`, `Judge`; add:
+In `src/agentgates/detect/__init__.py`: import `GoalDriftDetector`, `UngroundedAssumptionDetector`, `Judge`; add:
 
 ```python
 def judge_detectors(judge) -> list:
@@ -851,9 +851,9 @@ and extend `__all__` accordingly.
 ### Task 6: Failure-injection eval corpus + metrics
 
 **Files:**
-- Create: `src/tracegate/evals/__init__.py`
-- Create: `src/tracegate/evals/corpus.py`
-- Create: `src/tracegate/evals/metrics.py`
+- Create: `src/agentgates/evals/__init__.py`
+- Create: `src/agentgates/evals/corpus.py`
+- Create: `src/agentgates/evals/metrics.py`
 - Test: `tests/test_evals.py`
 
 **Interfaces:**
@@ -866,9 +866,9 @@ and extend `__all__` accordingly.
 - [ ] **Step 1: Write the failing tests** — `tests/test_evals.py`:
 
 ```python
-from tracegate.detect import LoopDetector, ToolMisuseDetector
-from tracegate.evals.corpus import build_corpus
-from tracegate.evals.metrics import DetectorScore, evaluate_detector
+from agentgates.detect import LoopDetector, ToolMisuseDetector
+from agentgates.evals.corpus import build_corpus
+from agentgates.evals.metrics import DetectorScore, evaluate_detector
 
 
 def test_corpus_composition():
@@ -900,18 +900,18 @@ def test_score_zero_denominators():
 ```
 
 - [ ] **Step 2: Run to verify failure** — ModuleNotFoundError
-- [ ] **Step 3: Implement** — `src/tracegate/evals/__init__.py`:
+- [ ] **Step 3: Implement** — `src/agentgates/evals/__init__.py`:
 
 ```python
 """Eval the evaluator: labeled failure-injection corpus + detector metrics."""
 
-from tracegate.evals.corpus import LabeledTrace, build_corpus
-from tracegate.evals.metrics import DetectorScore, evaluate_detector
+from agentgates.evals.corpus import LabeledTrace, build_corpus
+from agentgates.evals.metrics import DetectorScore, evaluate_detector
 
 __all__ = ["LabeledTrace", "build_corpus", "DetectorScore", "evaluate_detector"]
 ```
 
-`src/tracegate/evals/corpus.py`:
+`src/agentgates/evals/corpus.py`:
 
 ```python
 """Programmatically generated labeled corpus with injected failures."""
@@ -920,7 +920,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
 
 
 @dataclass
@@ -1041,7 +1041,7 @@ def build_corpus() -> list[LabeledTrace]:
     return corpus
 ```
 
-`src/tracegate/evals/metrics.py`:
+`src/agentgates/evals/metrics.py`:
 
 ```python
 """Trace-level precision/recall for a detector over a labeled corpus."""
@@ -1050,7 +1050,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from tracegate.evals.corpus import LabeledTrace
+from agentgates.evals.corpus import LabeledTrace
 
 
 class DetectorScore(BaseModel):
@@ -1090,13 +1090,13 @@ def evaluate_detector(detector, corpus: list[LabeledTrace]) -> DetectorScore:
 ### Task 7: CLI `detect` and `eval` commands
 
 **Files:**
-- Modify: `src/tracegate/cli.py`
+- Modify: `src/agentgates/cli.py`
 - Test: `tests/test_cli.py` (append)
 
 **Interfaces:**
 - Produces:
-  - `tracegate detect TRACE_ID [--store-dir PATH] [--judge]` — loads trace, runs `default_detectors()` (plus `judge_detectors(CachedJudge(ClaudeJudge(), <store-dir>/judge_cache.json))` when `--judge`), prints `[severity] step N detector: message` lines or "no findings"; exit 1 when trace missing; exit 0 otherwise (gating is Phase 3's `ci`).
-  - `tracegate eval` — prints per-detector precision/recall table for deterministic detectors over the built-in corpus.
+  - `agentgates detect TRACE_ID [--store-dir PATH] [--judge]` — loads trace, runs `default_detectors()` (plus `judge_detectors(CachedJudge(ClaudeJudge(), <store-dir>/judge_cache.json))` when `--judge`), prints `[severity] step N detector: message` lines or "no findings"; exit 1 when trace missing; exit 0 otherwise (gating is Phase 3's `ci`).
+  - `agentgates eval` — prints per-detector precision/recall table for deterministic detectors over the built-in corpus.
 
 - [ ] **Step 1: Write the failing tests** — append to `tests/test_cli.py`:
 
@@ -1138,12 +1138,12 @@ def test_eval_prints_scores():
 ```
 
 - [ ] **Step 2: Run to verify failure** — the four new tests fail (exit code 2, no such command)
-- [ ] **Step 3: Implement** — add to `src/tracegate/cli.py`:
+- [ ] **Step 3: Implement** — add to `src/agentgates/cli.py`:
 
 ```python
-from tracegate.detect import default_detectors, judge_detectors, run_detectors
-from tracegate.detect.judge import CachedJudge, ClaudeJudge
-from tracegate.evals import build_corpus, evaluate_detector
+from agentgates.detect import default_detectors, judge_detectors, run_detectors
+from agentgates.detect.judge import CachedJudge, ClaudeJudge
+from agentgates.evals import build_corpus, evaluate_detector
 
 
 @app.command()

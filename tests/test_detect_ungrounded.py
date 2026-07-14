@@ -1,6 +1,6 @@
-from tracegate.detect import judge_detectors
-from tracegate.detect.ungrounded import UngroundedAssumptionDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
+from agentgates.detect import judge_detectors
+from agentgates.detect.ungrounded import UngroundedAssumptionDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
 
 
 class FakeJudge:

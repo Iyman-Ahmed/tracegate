@@ -1,6 +1,6 @@
-from tracegate.detect import Finding
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
-from tracegate.report import render_html, render_terminal
+from agentgates.detect import Finding
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.report import render_html, render_terminal
 
 
 def result_fixture() -> SuiteResult:

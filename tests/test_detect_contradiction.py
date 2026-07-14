@@ -1,6 +1,6 @@
-from tracegate.detect import default_detectors
-from tracegate.detect.contradiction import ContradictionDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
+from agentgates.detect import default_detectors
+from agentgates.detect.contradiction import ContradictionDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
 
 
 def make_trace(steps) -> AgentTrace:

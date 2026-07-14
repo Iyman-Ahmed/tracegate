@@ -4,7 +4,7 @@ import urllib.request
 
 import pytest
 
-from tracegate.detect.judge import OpenAICompatibleJudge
+from agentgates.detect.judge import OpenAICompatibleJudge
 
 
 def _reachable(url="http://localhost:1234/v1/models") -> bool:

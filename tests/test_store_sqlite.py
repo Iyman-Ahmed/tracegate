@@ -1,7 +1,7 @@
 import pytest
 
-from tracegate.schema import AgentInfo, AgentTrace, TaskSpec
-from tracegate.store.sqlite import SQLiteTraceStore
+from agentgates.schema import AgentInfo, AgentTrace, TaskSpec
+from agentgates.store.sqlite import SQLiteTraceStore
 
 
 def make_trace(desc: str = "task") -> AgentTrace:

@@ -1,4 +1,4 @@
-from tracegate.schema import (
+from agentgates.schema import (
     AgentInfo,
     AgentTrace,
     LLMCallStep,

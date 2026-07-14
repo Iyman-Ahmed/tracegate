@@ -1,9 +1,9 @@
 """Simulated agent runner for the example suite (no API key needed).
 
-Run:  tracegate ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent --threshold 0.9
+Run:  agentgates ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent --threshold 0.9
 """
 
-from tracegate import TraceRecorder
+from agentgates import TraceRecorder
 
 
 class _NullStore:

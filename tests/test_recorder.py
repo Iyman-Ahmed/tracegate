@@ -1,5 +1,5 @@
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import TaskSpec
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import TaskSpec
 
 
 class FakeStore:
@@ -41,13 +41,13 @@ def test_context_manager_finishes():
 
 
 def test_default_store_used_when_none(tmp_path, monkeypatch):
-    monkeypatch.setenv("TRACEGATE_DIR", str(tmp_path))
+    monkeypatch.setenv("AGENTGATES_DIR", str(tmp_path))
     with TraceRecorder(task="x", framework="test"):
         pass
     assert (tmp_path / "traces.jsonl").exists()
 
 
 def test_public_api_reexport():
-    import tracegate
+    import agentgates
 
-    assert tracegate.TraceRecorder is TraceRecorder
+    assert agentgates.TraceRecorder is TraceRecorder

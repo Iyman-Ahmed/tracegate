@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from typing import Any
 
-from tracegate.adapters.langgraph import LangGraphAdapter, record_langgraph_stream
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import LLMCallStep, ToolCallStep
+from agentgates.adapters.langgraph import LangGraphAdapter, record_langgraph_stream
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import LLMCallStep, ToolCallStep
 
 
 # Stubs mirroring langchain-core message shapes (name-based dispatch).

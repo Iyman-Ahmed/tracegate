@@ -2,9 +2,9 @@ import sys
 
 from typer.testing import CliRunner
 
-from tracegate.cli import app
-from tracegate.recorder import TraceRecorder
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.cli import app
+from agentgates.recorder import TraceRecorder
+from agentgates.store.jsonl import JSONLTraceStore
 
 runner = CliRunner()
 
@@ -50,7 +50,7 @@ def test_show_missing_trace_exits_nonzero(tmp_path):
 def test_record_runs_script_and_stores_trace(tmp_path):
     script = tmp_path / "agent.py"
     script.write_text(
-        "from tracegate import TraceRecorder\n"
+        "from agentgates import TraceRecorder\n"
         "with TraceRecorder(task='demo', framework='test') as rec:\n"
         "    rec.record_llm_call(model='m', prompt='p', response='r')\n"
     )

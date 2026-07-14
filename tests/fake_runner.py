@@ -1,6 +1,6 @@
 """Importable fake agent runners for gate tests (not a test module)."""
 
-from tracegate.recorder import TraceRecorder
+from agentgates.recorder import TraceRecorder
 
 
 class _NullStore:

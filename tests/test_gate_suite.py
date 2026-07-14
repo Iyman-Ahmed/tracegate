@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from tracegate.gate.suite import Suite, load_suite
+from agentgates.gate.suite import Suite, load_suite
 
 SUITE_TOML = """
 [suite]

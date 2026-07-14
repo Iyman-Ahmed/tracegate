@@ -2,9 +2,9 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from tracegate.adapters.claude_agent_sdk import ClaudeAgentAdapter, record_stream
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import LLMCallStep, ToolCallStep
+from agentgates.adapters.claude_agent_sdk import ClaudeAgentAdapter, record_stream
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import LLMCallStep, ToolCallStep
 
 
 # Stubs mirroring claude-agent-sdk message/block shapes (name-based dispatch).

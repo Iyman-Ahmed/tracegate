@@ -1,4 +1,4 @@
-# TraceGate Phase 5 (Ecosystem) Implementation Plan
+# AgentGates Phase 5 (Ecosystem) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
@@ -13,13 +13,13 @@
 - `tests/conftest.py` sets `pytest_plugins = "pytester"` for plugin tests.
 - Branch `phases-2-5`; commit trailer as before.
 
-### Task 1: LangGraph adapter — `src/tracegate/adapters/langgraph.py`, tests `tests/test_adapter_langgraph.py`
+### Task 1: LangGraph adapter — `src/agentgates/adapters/langgraph.py`, tests `tests/test_adapter_langgraph.py`
 Produces `LangGraphAdapter(recorder)` with `handle_message(msg)` (AIMessage text→LLMCallStep; AIMessage.tool_calls→pending by id; ToolMessage→ToolCallStep, `status=="error"`→error) and `record_langgraph_stream(stream, recorder)` sync generator yielding updates unchanged, `finish()` in `finally`.
 
-### Task 2: OpenAI Agents adapter — `src/tracegate/adapters/openai_agents.py`, tests `tests/test_adapter_openai_agents.py`
+### Task 2: OpenAI Agents adapter — `src/agentgates/adapters/openai_agents.py`, tests `tests/test_adapter_openai_agents.py`
 Produces `OpenAIAgentsAdapter(recorder)` with `handle_item(item)` and `record_run(result, recorder) -> AgentTrace` (iterates `result.new_items`, sets `metadata["result"] = str(result.final_output)`, finishes). ToolCallItem raw args may be a JSON string → parse, fallback `{"raw": s}`.
 
-### Task 3: pytest plugin — `src/tracegate/pytest_plugin.py`, entry point in pyproject, tests `tests/test_pytest_plugin.py` (+ `tests/conftest.py`)
-Fixture `trace_recorder`: `TraceRecorder(task=<test name>, framework="pytest")`, finished on teardown, saved to the default store (`TRACEGATE_DIR`). Verified via `pytester.runpytest_inprocess()` with `TRACEGATE_DIR` monkeypatched.
+### Task 3: pytest plugin — `src/agentgates/pytest_plugin.py`, entry point in pyproject, tests `tests/test_pytest_plugin.py` (+ `tests/conftest.py`)
+Fixture `trace_recorder`: `TraceRecorder(task=<test name>, framework="pytest")`, finished on teardown, saved to the default store (`AGENTGATES_DIR`). Verified via `pytester.runpytest_inprocess()` with `AGENTGATES_DIR` monkeypatched.
 
 ### Task 4: README ecosystem section + full-suite verification + commit per task.

@@ -6,7 +6,7 @@ and everything after it was built on sand. We call these **silent failures**,
 and after instrumenting multi-step agents we keep seeing the same five shapes.
 
 Naming a failure mode is the first step to detecting it. This document defines
-the taxonomy TraceGate's detectors are built around.
+the taxonomy AgentGates's detectors are built around.
 
 ---
 
@@ -30,7 +30,7 @@ task: "Find the cheapest flight SFO->NYC under $500"
 [2] llm:  The Polaris seats look far more comfortable. Booking Polaris at $890.
 ```
 
-**TraceGate detector:** `goal_drift` (LLM-judge; compares the task spec +
+**AgentGates detector:** `goal_drift` (LLM-judge; compares the task spec +
 constraints against each step's intent, flags the first drifting step and the
 dropped constraint).
 
@@ -58,9 +58,9 @@ takes.
 Nothing anywhere said wifi or bags. The *decision* was steered by invented
 evidence.
 
-**TraceGate detector:** `ungrounded_assumption` (LLM-judge; audits each agent
+**AgentGates detector:** `ungrounded_assumption` (LLM-judge; audits each agent
 message against the evidence accumulated so far — task, tool results, prior
-messages — and lists claims with no support). This is TraceGate's signature
+messages — and lists claims with no support). This is AgentGates's signature
 detector.
 
 ---
@@ -82,7 +82,7 @@ re-check at step 6 says $580; the agent quotes $420 in the final answer.
 [7] llm:  Booked! Total charged: $420.
 ```
 
-**TraceGate detector:** `contradiction` (deterministic; when the same tool with
+**AgentGates detector:** `contradiction` (deterministic; when the same tool with
 the same arguments returns two different results, the agent holds conflicting
 evidence — a warning. When a later step still acts on the value that was
 superseded, that's an error). Semantic contradictions that aren't exact-value
@@ -109,7 +109,7 @@ Only the pattern across steps reveals that nothing is advancing.
 [6] llm:  The job completed. Moving on.
 ```
 
-**TraceGate detector:** `loop` (deterministic; fingerprints each step and
+**AgentGates detector:** `loop` (deterministic; fingerprints each step and
 flags ≥N identical consecutive steps as errors and ≥N identical tool calls
 anywhere as warnings — zero LLM cost).
 
@@ -133,7 +133,7 @@ often it simply… doesn't.
 [1] llm:  Invoice A17 retrieved. The total is $1,240. Marking as paid.
 ```
 
-**TraceGate detector:** `tool_misuse` (deterministic; warns on every errored
+**AgentGates detector:** `tool_misuse` (deterministic; warns on every errored
 tool call, escalates to error on identical-argument retries that fail again).
 Fabricated references to tool output are covered by `ungrounded_assumption`.
 
@@ -143,7 +143,7 @@ Fabricated references to tool output are covered by `ungrounded_assumption`.
 
 All five modes share a property: **you cannot see them in the output.** You
 can only see them in the *trace* — the structured record of what the agent
-believed, called, and received at every step. That's why TraceGate is built as
+believed, called, and received at every step. That's why AgentGates is built as
 record → detect → gate:
 
 1. **Record** every step into a normalized `AgentTrace` (local-first, JSONL/SQLite).

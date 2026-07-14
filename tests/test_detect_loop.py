@@ -1,6 +1,6 @@
-from tracegate.detect import Finding, run_detectors
-from tracegate.detect.loop import LoopDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
+from agentgates.detect import Finding, run_detectors
+from agentgates.detect.loop import LoopDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec, ToolCallStep
 
 
 def make_trace(steps) -> AgentTrace:

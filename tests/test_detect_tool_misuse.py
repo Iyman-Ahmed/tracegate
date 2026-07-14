@@ -1,6 +1,6 @@
-from tracegate.detect import default_detectors
-from tracegate.detect.tool_misuse import ToolMisuseDetector
-from tracegate.schema import AgentInfo, AgentTrace, TaskSpec, ToolCallStep
+from agentgates.detect import default_detectors
+from agentgates.detect.tool_misuse import ToolMisuseDetector
+from agentgates.schema import AgentInfo, AgentTrace, TaskSpec, ToolCallStep
 
 
 def make_trace(steps) -> AgentTrace:

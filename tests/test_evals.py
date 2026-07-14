@@ -1,6 +1,6 @@
-from tracegate.detect import default_detectors
-from tracegate.evals.corpus import build_corpus
-from tracegate.evals.metrics import DetectorScore, evaluate_detector
+from agentgates.detect import default_detectors
+from agentgates.evals.corpus import build_corpus
+from agentgates.evals.metrics import DetectorScore, evaluate_detector
 
 
 def test_corpus_composition():

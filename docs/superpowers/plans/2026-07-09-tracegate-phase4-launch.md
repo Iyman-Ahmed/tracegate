@@ -1,4 +1,4 @@
-# TraceGate Phase 4 (Launch Assets) Implementation Plan
+# AgentGates Phase 4 (Launch Assets) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. Steps use checkbox (`- [ ]`) syntax.
 
@@ -30,5 +30,5 @@
 **Files:** Create `docs/silent-failure-taxonomy.md`; rewrite `README.md`.
 
 - [ ] Step 1: write taxonomy doc (5 modes, examples, detector mapping, contradiction = roadmap)
-- [ ] Step 2: rewrite README with real `tracegate eval` output and demo numbers from Task 1
+- [ ] Step 2: rewrite README with real `agentgates eval` output and demo numbers from Task 1
 - [ ] Step 3: full suite green; commit `docs: silent-failure taxonomy and README overhaul`

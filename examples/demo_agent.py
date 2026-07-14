@@ -1,10 +1,10 @@
 """Simulated 5-step agent run — records a trace without any API key.
 
-Run:  tracegate record examples/demo_agent.py
-Then: tracegate list && tracegate show <trace_id>
+Run:  agentgates record examples/demo_agent.py
+Then: agentgates list && agentgates show <trace_id>
 """
 
-from tracegate import TraceRecorder
+from agentgates import TraceRecorder
 
 with TraceRecorder(
     task="Find the cheapest flight SFO->NYC under $500 next Friday",

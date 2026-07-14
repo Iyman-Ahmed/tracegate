@@ -1,9 +1,9 @@
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.store.jsonl import JSONLTraceStore
 
 
 def test_trace_recorder_fixture_records_and_saves(pytester, monkeypatch, tmp_path):
     store_dir = tmp_path / "traces"
-    monkeypatch.setenv("TRACEGATE_DIR", str(store_dir))
+    monkeypatch.setenv("AGENTGATES_DIR", str(store_dir))
     pytester.makepyfile(
         """
         def test_agent(trace_recorder):
@@ -27,4 +27,4 @@ def test_entry_point_registered():
     from importlib.metadata import entry_points
 
     names = [ep.name for ep in entry_points(group="pytest11")]
-    assert "tracegate" in names
+    assert "agentgates" in names

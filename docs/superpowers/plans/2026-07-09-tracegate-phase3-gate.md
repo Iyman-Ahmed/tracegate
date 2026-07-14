@@ -1,10 +1,10 @@
-# TraceGate Phase 3 (Gate) Implementation Plan
+# AgentGates Phase 3 (Gate) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build TraceGate's Gate layer: TOML replay suites, a runner that re-executes an agent against suite tasks and scores outcomes (pass@k-style success rates + detector-finding penalties), baseline save/compare, terminal + static HTML reports, `tracegate run` / `tracegate ci` (exit non-zero on threshold/baseline drop), and a composite GitHub Action.
+**Goal:** Build AgentGates's Gate layer: TOML replay suites, a runner that re-executes an agent against suite tasks and scores outcomes (pass@k-style success rates + detector-finding penalties), baseline save/compare, terminal + static HTML reports, `agentgates run` / `agentgates ci` (exit non-zero on threshold/baseline drop), and a composite GitHub Action.
 
-**Architecture:** A suite is a TOML file of cases (task + expected-outcome substrings). The user supplies a runner — `module:function` or `path/file.py:function` — that takes a task string and returns an `AgentTrace` (usually via `TraceRecorder`). `run_suite` executes N runs per case, scores outcomes (not paths — replay is non-deterministic), runs deterministic detectors on every trace, and computes a reliability score = mean success rate × (1 − min(0.5, 0.1 × error-findings-per-run)). `tracegate ci` fails when the score is below `--threshold` or below a stored baseline. Reports are stdlib-generated (f-strings + `html.escape`) — deviating from the proposal's Jinja to keep zero new required deps, per the local-first principle.
+**Architecture:** A suite is a TOML file of cases (task + expected-outcome substrings). The user supplies a runner — `module:function` or `path/file.py:function` — that takes a task string and returns an `AgentTrace` (usually via `TraceRecorder`). `run_suite` executes N runs per case, scores outcomes (not paths — replay is non-deterministic), runs deterministic detectors on every trace, and computes a reliability score = mean success rate × (1 − min(0.5, 0.1 × error-findings-per-run)). `agentgates ci` fails when the score is below `--threshold` or below a stored baseline. Reports are stdlib-generated (f-strings + `html.escape`) — deviating from the proposal's Jinja to keep zero new required deps, per the local-first principle.
 
 **Tech Stack:** stdlib `tomllib` (Python 3.11+) for suites, `importlib` for runner resolution, no new dependencies.
 
@@ -21,12 +21,12 @@
 ### Task 1: Suite loading (TOML)
 
 **Files:**
-- Create: `src/tracegate/gate/__init__.py`
-- Create: `src/tracegate/gate/suite.py`
+- Create: `src/agentgates/gate/__init__.py`
+- Create: `src/agentgates/gate/suite.py`
 - Test: `tests/test_gate_suite.py`
 
 **Interfaces:**
-- Produces (`tracegate.gate.suite`): `SuiteCase(id: str, task: str, constraints: list[str] = [], expect_contains: list[str] = [], runs: int | None = None)`, `Suite(name: str = "suite", runs_per_case: int = 1, threshold: float | None = None, cases: list[SuiteCase])`, `load_suite(path: Path) -> Suite`.
+- Produces (`agentgates.gate.suite`): `SuiteCase(id: str, task: str, constraints: list[str] = [], expect_contains: list[str] = [], runs: int | None = None)`, `Suite(name: str = "suite", runs_per_case: int = 1, threshold: float | None = None, cases: list[SuiteCase])`, `load_suite(path: Path) -> Suite`.
 
 - [ ] **Step 1: failing tests** — `tests/test_gate_suite.py`:
 
@@ -34,7 +34,7 @@
 import pytest
 from pydantic import ValidationError
 
-from tracegate.gate.suite import Suite, load_suite
+from agentgates.gate.suite import Suite, load_suite
 
 SUITE_TOML = """
 [suite]
@@ -84,13 +84,13 @@ def test_case_requires_id_and_task():
 ```
 
 - [ ] **Step 2: verify fail** — ModuleNotFoundError
-- [ ] **Step 3: implement** — `src/tracegate/gate/__init__.py`:
+- [ ] **Step 3: implement** — `src/agentgates/gate/__init__.py`:
 
 ```python
 """Gate layer: replayable regression suites with a reliability score."""
 ```
 
-`src/tracegate/gate/suite.py`:
+`src/agentgates/gate/suite.py`:
 
 ```python
 """TOML replay-suite definition."""
@@ -131,7 +131,7 @@ def load_suite(path: Path) -> Suite:
 ### Task 2: Scoring models
 
 **Files:**
-- Create: `src/tracegate/gate/score.py`
+- Create: `src/agentgates/gate/score.py`
 - Test: `tests/test_gate_score.py`
 
 **Interfaces:**
@@ -140,8 +140,8 @@ def load_suite(path: Path) -> Suite:
 - [ ] **Step 1: failing tests** — `tests/test_gate_score.py`:
 
 ```python
-from tracegate.detect import Finding
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.detect import Finding
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
 
 
 def err(msg="e"):
@@ -199,7 +199,7 @@ def test_empty_suite_scores_zero():
     assert SuiteResult(suite_name="s", cases=[]).reliability_score == 0.0
 ```
 
-- [ ] **Step 2: verify fail**; **Step 3: implement** — `src/tracegate/gate/score.py`:
+- [ ] **Step 2: verify fail**; **Step 3: implement** — `src/agentgates/gate/score.py`:
 
 ```python
 """Outcome scoring: pass@k-style success rates + detector penalties."""
@@ -208,7 +208,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from tracegate.detect import Finding
+from agentgates.detect import Finding
 
 
 class RunResult(BaseModel):
@@ -264,12 +264,12 @@ class SuiteResult(BaseModel):
 ### Task 3: Runner resolution + suite execution
 
 **Files:**
-- Create: `src/tracegate/gate/runner.py`
+- Create: `src/agentgates/gate/runner.py`
 - Create: `tests/fake_runner.py` (test fixture module, not a test file)
 - Test: `tests/test_gate_runner.py`
 
 **Interfaces:**
-- Produces (`tracegate.gate.runner`):
+- Produces (`agentgates.gate.runner`):
   - `resolve_runner(spec: str) -> Callable[[str], AgentTrace]` — `"module:function"` (imports module, with cwd prepended to `sys.path` if missing) or `"path/to/file.py:function"` (spec_from_file_location). `ValueError` on missing `:`.
   - `run_suite(suite: Suite, runner, detectors: list | None = None) -> SuiteResult` — detectors default `default_detectors()`; runner exceptions → `RunResult(success=False, error="Type: msg")`; outcome text = `str(trace.metadata["result"])` if truthy else last `LLMCallStep.response` else `""`; success = every `expect_contains` substring in outcome.
 
@@ -278,7 +278,7 @@ class SuiteResult(BaseModel):
 ```python
 """Importable fake agent runners for gate tests (not a test module)."""
 
-from tracegate.recorder import TraceRecorder
+from agentgates.recorder import TraceRecorder
 
 
 class _NullStore:
@@ -315,8 +315,8 @@ def crashing_runner(task: str):
 ```python
 import pytest
 
-from tracegate.gate.runner import resolve_runner, run_suite
-from tracegate.gate.suite import Suite, SuiteCase
+from agentgates.gate.runner import resolve_runner, run_suite
+from agentgates.gate.suite import Suite, SuiteCase
 
 
 def suite_of(case: SuiteCase, runs_per_case: int = 1) -> Suite:
@@ -391,7 +391,7 @@ def test_case_runs_overrides_suite_default():
     assert len(result.cases[0].runs) == 2
 ```
 
-- [ ] **Step 2: verify fail**; **Step 3: implement** — `src/tracegate/gate/runner.py`:
+- [ ] **Step 2: verify fail**; **Step 3: implement** — `src/agentgates/gate/runner.py`:
 
 ```python
 """Resolve user agent runners and replay suites against them."""
@@ -405,10 +405,10 @@ import sys
 from pathlib import Path
 from typing import Any, Callable
 
-from tracegate.detect import default_detectors, run_detectors
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
-from tracegate.gate.suite import Suite
-from tracegate.schema import AgentTrace, LLMCallStep
+from agentgates.detect import default_detectors, run_detectors
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.gate.suite import Suite
+from agentgates.schema import AgentTrace, LLMCallStep
 
 Runner = Callable[[str], AgentTrace]
 
@@ -469,8 +469,8 @@ def run_suite(suite: Suite, runner: Runner, detectors: list | None = None) -> Su
 ### Task 4: Baseline + reports (terminal & HTML)
 
 **Files:**
-- Create: `src/tracegate/gate/baseline.py`
-- Create: `src/tracegate/report.py`
+- Create: `src/agentgates/gate/baseline.py`
+- Create: `src/agentgates/report.py`
 - Test: `tests/test_gate_baseline.py`, `tests/test_report.py`
 
 **Interfaces:**
@@ -483,8 +483,8 @@ def run_suite(suite: Suite, runner: Runner, detectors: list | None = None) -> Su
 ```python
 import json
 
-from tracegate.gate.baseline import load_baseline, save_baseline
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.gate.baseline import load_baseline, save_baseline
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
 
 
 def result_fixture() -> SuiteResult:
@@ -506,9 +506,9 @@ def test_save_and_load_roundtrip(tmp_path):
 `tests/test_report.py`:
 
 ```python
-from tracegate.detect import Finding
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
-from tracegate.report import render_html, render_terminal
+from agentgates.detect import Finding
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.report import render_html, render_terminal
 
 
 def result_fixture() -> SuiteResult:
@@ -539,7 +539,7 @@ def test_html_report_escapes_and_includes_score():
     assert "good" in html and "bad" in html
 ```
 
-- [ ] **Step 2: verify fail**; **Step 3: implement** — `src/tracegate/gate/baseline.py`:
+- [ ] **Step 2: verify fail**; **Step 3: implement** — `src/agentgates/gate/baseline.py`:
 
 ```python
 """Persisted reliability baselines for regression comparison."""
@@ -549,7 +549,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from tracegate.gate.score import SuiteResult
+from agentgates.gate.score import SuiteResult
 
 
 def save_baseline(result: SuiteResult, path: Path) -> None:
@@ -564,7 +564,7 @@ def load_baseline(path: Path) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 ```
 
-`src/tracegate/report.py`:
+`src/agentgates/report.py`:
 
 ```python
 """Terminal and static-HTML reports for suite results (stdlib only)."""
@@ -573,7 +573,7 @@ from __future__ import annotations
 
 from html import escape
 
-from tracegate.gate.score import CaseResult, SuiteResult
+from agentgates.gate.score import CaseResult, SuiteResult
 
 
 def _finding_counts(case: CaseResult) -> tuple[int, int]:
@@ -624,7 +624,7 @@ def render_html(result: SuiteResult) -> str:
             f"<td><ul>{findings_html}{run_errors}</ul></td></tr>"
         )
     return f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>TraceGate report: {escape(result.suite_name)}</title>
+<html><head><meta charset="utf-8"><title>AgentGates report: {escape(result.suite_name)}</title>
 <style>
 body {{ font-family: -apple-system, system-ui, sans-serif; margin: 2rem; }}
 table {{ border-collapse: collapse; width: 100%; }}
@@ -634,7 +634,7 @@ li.error {{ color: #b00020; }}
 li.warning {{ color: #8a6d00; }}
 ul {{ margin: 0; padding-left: 1.2rem; }}
 </style></head><body>
-<h1>TraceGate &mdash; {escape(result.suite_name)}</h1>
+<h1>AgentGates &mdash; {escape(result.suite_name)}</h1>
 <p class="score">reliability score: <strong>{result.reliability_score:.2f}</strong>
  ({result.total_runs} runs)</p>
 <table><tr><th>case</th><th>passed</th><th>findings</th><th>detail</th></tr>
@@ -650,23 +650,23 @@ ul {{ margin: 0; padding-left: 1.2rem; }}
 ### Task 5: CLI `run` + `ci`, GitHub Action, example suite
 
 **Files:**
-- Modify: `src/tracegate/cli.py`
+- Modify: `src/agentgates/cli.py`
 - Create: `action.yml`
 - Create: `examples/suite.toml`, `examples/suite_runner.py`
 - Test: `tests/test_cli_gate.py`
 
 **Interfaces:**
-- `tracegate run --suite PATH --runner SPEC [--report out.html]` — prints terminal report; writes HTML when asked; exit 0.
-- `tracegate ci --suite PATH --runner SPEC [--threshold F] [--baseline PATH] [--update-baseline] [--report out.html]` — threshold falls back to suite's `threshold`; fails (exit 1) when score < threshold or score < stored baseline score − 1e-9; `--update-baseline` writes the baseline after the run (and skips the compare).
-- `action.yml` — composite action: inputs `suite`, `runner`, `threshold` (optional), `install` (default `.`), `python-version` (default `3.12`); pip-installs tracegate + the project, runs `tracegate ci`.
-- `examples/suite.toml` + `examples/suite_runner.py` — runnable demo (`tracegate ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent --threshold 0.9` passes).
+- `agentgates run --suite PATH --runner SPEC [--report out.html]` — prints terminal report; writes HTML when asked; exit 0.
+- `agentgates ci --suite PATH --runner SPEC [--threshold F] [--baseline PATH] [--update-baseline] [--report out.html]` — threshold falls back to suite's `threshold`; fails (exit 1) when score < threshold or score < stored baseline score − 1e-9; `--update-baseline` writes the baseline after the run (and skips the compare).
+- `action.yml` — composite action: inputs `suite`, `runner`, `threshold` (optional), `install` (default `.`), `python-version` (default `3.12`); pip-installs agentgates + the project, runs `agentgates ci`.
+- `examples/suite.toml` + `examples/suite_runner.py` — runnable demo (`agentgates ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent --threshold 0.9` passes).
 
 - [ ] **Step 1: failing tests** — `tests/test_cli_gate.py`:
 
 ```python
 from typer.testing import CliRunner
 
-from tracegate.cli import app
+from agentgates.cli import app
 
 runner = CliRunner()
 
@@ -755,7 +755,7 @@ def test_ci_baseline_update_then_regression(tmp_path):
 ```
 
 - [ ] **Step 2: verify fail** (usage error, exit 2)
-- [ ] **Step 3: implement** — add to `src/tracegate/cli.py` (new imports: `load_suite`, `resolve_runner`, `run_suite`, `save_baseline`, `load_baseline`, `render_terminal`, `render_html`; `Optional` from typing if needed):
+- [ ] **Step 3: implement** — add to `src/agentgates/cli.py` (new imports: `load_suite`, `resolve_runner`, `run_suite`, `save_baseline`, `load_baseline`, `render_terminal`, `render_html`; `Optional` from typing if needed):
 
 ```python
 def _run_gate(suite_path: Path, runner_spec: str):
@@ -814,8 +814,8 @@ def ci(
 `action.yml`:
 
 ```yaml
-name: "TraceGate CI"
-description: "Replay a TraceGate suite against your agent and fail the build when the reliability score drops."
+name: "AgentGates CI"
+description: "Replay a AgentGates suite against your agent and fail the build when the reliability score drops."
 branding:
   icon: "shield"
   color: "orange"
@@ -844,14 +844,14 @@ runs:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-    - run: pip install tracegate "${{ inputs.install }}"
+    - run: pip install agentgates "${{ inputs.install }}"
       shell: bash
     - run: |
         ARGS=""
         if [ -n "${{ inputs.threshold }}" ]; then
           ARGS="--threshold ${{ inputs.threshold }}"
         fi
-        tracegate ci --suite "${{ inputs.suite }}" --runner "${{ inputs.runner }}" $ARGS
+        agentgates ci --suite "${{ inputs.suite }}" --runner "${{ inputs.runner }}" $ARGS
       shell: bash
 ```
 
@@ -860,10 +860,10 @@ runs:
 ```python
 """Simulated agent runner for the example suite (no API key needed).
 
-Run:  tracegate ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent --threshold 0.9
+Run:  agentgates ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent --threshold 0.9
 """
 
-from tracegate import TraceRecorder
+from agentgates import TraceRecorder
 
 
 class _NullStore:
@@ -905,5 +905,5 @@ expect_contains = ["Task complete"]
 ```
 
 - [ ] **Step 4: verify** — `venv/bin/pytest -q` all green, then end-to-end:
-  `venv/bin/tracegate ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent` → "gate passed: score 1.00", exit 0.
-- [ ] **Step 5: commit** — `feat: tracegate run/ci commands, GitHub Action, example suite`
+  `venv/bin/agentgates ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent` → "gate passed: score 1.00", exit 0.
+- [ ] **Step 5: commit** — `feat: agentgates run/ci commands, GitHub Action, example suite`

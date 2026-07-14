@@ -1,7 +1,7 @@
 import json
 
-from tracegate.gate.baseline import load_baseline, save_baseline
-from tracegate.gate.score import CaseResult, RunResult, SuiteResult
+from agentgates.gate.baseline import load_baseline, save_baseline
+from agentgates.gate.score import CaseResult, RunResult, SuiteResult
 
 
 def result_fixture() -> SuiteResult:

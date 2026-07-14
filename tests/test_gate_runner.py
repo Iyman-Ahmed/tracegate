@@ -1,7 +1,7 @@
 import pytest
 
-from tracegate.gate.runner import resolve_runner, run_suite
-from tracegate.gate.suite import Suite, SuiteCase
+from agentgates.gate.runner import resolve_runner, run_suite
+from agentgates.gate.suite import Suite, SuiteCase
 
 
 def suite_of(case: SuiteCase, runs_per_case: int = 1) -> Suite:

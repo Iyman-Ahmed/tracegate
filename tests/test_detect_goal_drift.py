@@ -1,5 +1,5 @@
-from tracegate.detect.goal_drift import GoalDriftDetector
-from tracegate.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec
+from agentgates.detect.goal_drift import GoalDriftDetector
+from agentgates.schema import AgentInfo, AgentTrace, LLMCallStep, TaskSpec
 
 
 class FakeJudge:

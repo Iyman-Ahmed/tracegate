@@ -1,12 +1,15 @@
-# TraceGate
+# AgentGates
+
+[![CI](https://github.com/Iyman-Ahmed/agentgates/actions/workflows/ci.yml/badge.svg)](https://github.com/Iyman-Ahmed/agentgates/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **The black box flight recorder for AI agents** — record every step, detect silent failures, gate your deploys.
 
-An agent that is 95% reliable per step is only **~59% reliable across a 10-step workflow**. Worse: the failures that matter never throw. The agent drops a constraint, invents a fact, loops quietly, ignores a tool error — and still says "Task complete." TraceGate is the missing pipeline for exactly that problem:
+An agent that is 95% reliable per step is only **~59% reliable across a 10-step workflow**. Worse: the failures that matter never throw. The agent drops a constraint, invents a fact, loops quietly, ignores a tool error — and still says "Task complete." AgentGates is the missing pipeline for exactly that problem:
 
 - **Record** — a drop-in recorder that captures every LLM call and tool call into a normalized `AgentTrace`. Local-first: traces land in JSONL/SQLite on your machine, no server, no data leaves.
 - **Detect** — analyzers that read traces and pinpoint *which step* went wrong: deterministic checks (loops, tool misuse) for free, LLM-judge checks (goal drift, ungrounded assumptions) where semantics demand it.
-- **Gate** — replayable regression suites with a reliability score. `tracegate ci` fails your build when quality drops. Pytest for agents.
+- **Gate** — replayable regression suites with a reliability score. `agentgates ci` fails your build when quality drops. Pytest for agents.
 
 ## See it: the compounding-error demo
 
@@ -18,7 +21,7 @@ python examples/compounding_demo.py
 10-step agent, 95% reliable per step, 10 runs
 expected failure rate: 40%
 
-run   agent says         reality                  traceGate verdict
+run   agent says         reality                  AgentGates verdict
 1     "Task complete."   actually succeeded       no findings
 3     "Task complete."   silently died at step 0  [error] step 0 loop: identical step repeated 3x
 8     "Task complete."   silently died at step 3  [error] step 3 loop: identical step repeated 3x
@@ -27,13 +30,17 @@ run   agent says         reality                  traceGate verdict
 4/10 runs failed silently — every one pinned to its originating step.
 ```
 
-Every run *claims* success. TraceGate reads the trace and pins each silent failure to the step that caused it.
+Every run *claims* success. AgentGates reads the trace and pins each silent failure to the step that caused it.
 
 ## Install
 
 ```bash
+# from a clone (development):
 pip install -e .            # core: recorder, stores, detectors, CLI
-pip install -e ".[judge]"   # + LLM-judge detectors (goal drift, ungrounded assumptions)
+pip install -e ".[judge]"   # + Claude-API judge for the semantic detectors
+
+# or straight from GitHub (PyPI release coming):
+pip install "git+https://github.com/Iyman-Ahmed/agentgates"
 ```
 
 ## Layer 1 — Record
@@ -41,7 +48,7 @@ pip install -e ".[judge]"   # + LLM-judge detectors (goal drift, ungrounded assu
 Any Python agent, manually:
 
 ```python
-from tracegate import TraceRecorder
+from agentgates import TraceRecorder
 
 with TraceRecorder(task="user's task", framework="my-agent") as rec:
     rec.record_llm_call(model="claude-sonnet-5", prompt="...", response="...")
@@ -52,8 +59,8 @@ Claude Agent SDK, streaming — two lines around your existing loop:
 
 ```python
 from claude_agent_sdk import query
-from tracegate import TraceRecorder
-from tracegate.adapters.claude_agent_sdk import record_stream
+from agentgates import TraceRecorder
+from agentgates.adapters.claude_agent_sdk import record_stream
 
 recorder = TraceRecorder(task=prompt, framework="claude-agent-sdk")
 async for message in record_stream(query(prompt=prompt), recorder):
@@ -63,8 +70,8 @@ async for message in record_stream(query(prompt=prompt), recorder):
 LangGraph — wrap the stream:
 
 ```python
-from tracegate import TraceRecorder
-from tracegate.adapters.langgraph import record_langgraph_stream
+from agentgates import TraceRecorder
+from agentgates.adapters.langgraph import record_langgraph_stream
 
 recorder = TraceRecorder(task=task, framework="langgraph")
 for update in record_langgraph_stream(graph.stream(inputs), recorder):
@@ -74,45 +81,45 @@ for update in record_langgraph_stream(graph.stream(inputs), recorder):
 OpenAI Agents SDK — record a completed run:
 
 ```python
-from tracegate import TraceRecorder
-from tracegate.adapters.openai_agents import record_run
+from agentgates import TraceRecorder
+from agentgates.adapters.openai_agents import record_run
 
 recorder = TraceRecorder(task=task, framework="openai-agents")
 result = await Runner.run(agent, task)
 record_run(result, recorder)
 ```
 
-All adapters are duck-typed — TraceGate has **zero** hard framework dependencies.
+All adapters are duck-typed — AgentGates has **zero** hard framework dependencies.
 
-In pytest — a `trace_recorder` fixture registers automatically when tracegate is installed:
+In pytest — a `trace_recorder` fixture registers automatically when agentgates is installed:
 
 ```python
 def test_my_agent(trace_recorder):
     trace_recorder.record_llm_call(model="...", prompt="...", response="...")
-    # trace saves on teardown; inspect it later with `tracegate show`
+    # trace saves on teardown; inspect it later with `agentgates show`
 ```
 
 Or wrap any script without touching its code:
 
 ```bash
-tracegate record my_agent_script.py    # sets TRACEGATE_DIR, runs it, stores traces
-tracegate list                         # list recorded traces
-tracegate show <trace_id>              # step-by-step timeline
+agentgates record my_agent_script.py    # sets AGENTGATES_DIR, runs it, stores traces
+agentgates list                         # list recorded traces
+agentgates show <trace_id>              # step-by-step timeline
 ```
 
-Traces land in `.tracegate/traces.jsonl` (override with `TRACEGATE_DIR`).
+Traces land in `.agentgates/traces.jsonl` (override with `AGENTGATES_DIR`).
 
 ## Layer 2 — Detect
 
 ```bash
-tracegate detect <trace_id>            # deterministic detectors (free, instant)
-tracegate detect <trace_id> --judge    # + LLM-judge detectors (Claude API, cached by trace content)
+agentgates detect <trace_id>            # deterministic detectors (free, instant)
+agentgates detect <trace_id> --judge    # + LLM-judge detectors (Claude API, cached by trace content)
 ```
 
 The judge is pluggable. Point it at any **OpenAI-compatible** endpoint — LM Studio, Ollama, vLLM — to run the semantic detectors against a **local** model with no API key and nothing leaving your machine:
 
 ```bash
-tracegate detect <trace_id> --judge \
+agentgates detect <trace_id> --judge \
   --judge-url http://localhost:1234/v1 --judge-model qwen2.5-7b-instruct-1m
 ```
 
@@ -128,7 +135,7 @@ This backend uses only the standard library — no extra dependency. (Local 7B m
 
 The full failure-mode reference: [The Silent-Failure Taxonomy](docs/silent-failure-taxonomy.md).
 
-**A reliability tool must prove its own reliability.** The detectors ship with a labeled failure-injection corpus and are scored on it (`tracegate eval`):
+**A reliability tool must prove its own reliability.** The detectors ship with a labeled failure-injection corpus and are scored on it (`agentgates eval`):
 
 ```text
 corpus: 14 labeled traces
@@ -138,7 +145,7 @@ tool_misuse           1.00    1.00
 contradiction         1.00    1.00
 ```
 
-Judge-based detectors have their own labeled corpus, scored with `tracegate eval --judge`; add `--judge-url`/`--judge-model` to score them with a **local** model instead of the Claude API. Judge calls are cached by prompt hash so reruns cost nothing. The eval harness is validated in CI with scripted judges, so the plumbing is covered without any model at all.
+Judge-based detectors have their own labeled corpus, scored with `agentgates eval --judge`; add `--judge-url`/`--judge-model` to score them with a **local** model instead of the Claude API. Judge calls are cached by prompt hash so reruns cost nothing. The eval harness is validated in CI with scripted judges, so the plumbing is covered without any model at all.
 
 ## Layer 3 — Gate
 
@@ -156,17 +163,17 @@ task = "Find the cheapest flight SFO->NYC under $500"
 expect_contains = ["$420"]
 ```
 
-Point TraceGate at any function that runs your agent for a task and returns the trace:
+Point AgentGates at any function that runs your agent for a task and returns the trace:
 
 ```bash
-tracegate run --suite suite.toml --runner myproject.agent:run_task --report report.html
-tracegate ci  --suite suite.toml --runner myproject.agent:run_task   # exit 1 on drop
+agentgates run --suite suite.toml --runner myproject.agent:run_task --report report.html
+agentgates ci  --suite suite.toml --runner myproject.agent:run_task   # exit 1 on drop
 ```
 
 The reliability score combines task success rates with detector findings; `ci` fails below `--threshold` or a stored `--baseline`. In GitHub Actions:
 
 ```yaml
-- uses: Iyman-Ahmed/tracegate@main
+- uses: Iyman-Ahmed/agentgates@main
   with:
     suite: tests/agent_suite.toml
     runner: myproject.agent:run_task
@@ -176,16 +183,16 @@ The reliability score combines task success rates with detector findings; `ci` f
 Try it locally with the bundled example:
 
 ```bash
-tracegate ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent
+agentgates ci --suite examples/suite.toml --runner examples/suite_runner.py:run_agent
 ```
 
-## What TraceGate is not
+## What AgentGates is not
 
 Not a hosted dashboard (local + CI first). Not an agent framework (it instruments yours). Not a security scanner (it catches *accidents*, not attacks). Not a single-call eval library (multi-step workflows only).
 
 ## Status & roadmap
 
-All five phases of the [proposal](PROPOSAL.md) are implemented: schema, recorder, adapters (Claude Agent SDK, LangGraph, OpenAI Agents SDK), JSONL/SQLite stores, all five detectors with a labeled eval corpus, replay suites, `tracegate ci`, HTML reports, GitHub Action, pytest plugin. See [docs/STATUS.md](docs/STATUS.md) for the build state and design decisions. Next: benchmark-trace findings, semantic contradiction via judge.
+All five phases of the [proposal](PROPOSAL.md) are implemented: schema, recorder, adapters (Claude Agent SDK, LangGraph, OpenAI Agents SDK), JSONL/SQLite stores, all five detectors with a labeled eval corpus, replay suites, `agentgates ci`, HTML reports, GitHub Action, pytest plugin. See [docs/STATUS.md](docs/STATUS.md) for the build state and design decisions. Next: benchmark-trace findings, semantic contradiction via judge.
 
 ## Development
 

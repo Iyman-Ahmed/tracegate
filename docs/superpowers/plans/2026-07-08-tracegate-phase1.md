@@ -1,8 +1,8 @@
-# TraceGate Phase 1 (Core Spine) Implementation Plan
+# AgentGates Phase 1 (Core Spine) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build TraceGate's Phase 1 core spine: the AgentTrace schema, a trace recorder with a Claude Agent SDK adapter, JSONL + SQLite local stores, and a minimal Typer CLI (`record`, `show`, `list`).
+**Goal:** Build AgentGates's Phase 1 core spine: the AgentTrace schema, a trace recorder with a Claude Agent SDK adapter, JSONL + SQLite local stores, and a minimal Typer CLI (`record`, `show`, `list`).
 
 **Architecture:** A framework-agnostic Pydantic `AgentTrace` schema is the core product; a `TraceRecorder` builds traces in memory and persists them via a `TraceStore` protocol (JSONL default, SQLite optional). The Claude Agent SDK adapter translates the SDK's message stream into recorder calls without importing the SDK (duck-typed, so tests need no API key or network). The CLI reads/writes the local store only.
 
@@ -12,10 +12,10 @@
 
 - Python `>=3.11`; dependencies limited to `pydantic>=2.7` and `typer>=0.12` (dev: `pytest>=8`). No other runtime deps in Phase 1.
 - Local-first: no network calls anywhere in Phase 1 code or tests; the Claude adapter must not import `claude_agent_sdk` (duck-typed message handling only).
-- Package name `tracegate`, console script `tracegate`, src layout (`src/tracegate/`).
-- Default trace location: directory from env var `TRACEGATE_DIR`, falling back to `.tracegate/`; JSONL file name `traces.jsonl`.
-- Never commit `CLAUDE.md`, `venv/`, `*.sqlite`, `.tracegate/` (gitignored).
-- All work happens inside `/Users/iymanahmed/Documents/New project/tracegate` which gets its own git repo (Task 1). Run tests with `venv/bin/pytest` from the project root.
+- Package name `agentgates`, console script `agentgates`, src layout (`src/agentgates/`).
+- Default trace location: directory from env var `AGENTGATES_DIR`, falling back to `.agentgates/`; JSONL file name `traces.jsonl`.
+- Never commit `CLAUDE.md`, `venv/`, `*.sqlite`, `.agentgates/` (gitignored).
+- All work happens inside `/Users/iymanahmed/Documents/New project/agentgates` which gets its own git repo (Task 1). Run tests with `venv/bin/pytest` from the project root.
 - Commit messages end with: `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`
 
 ---
@@ -24,18 +24,18 @@
 
 **Files:**
 - Create: `pyproject.toml`
-- Create: `src/tracegate/__init__.py`
+- Create: `src/agentgates/__init__.py`
 - Create: `tests/__init__.py` (empty)
 - Test: `tests/test_package.py`
-- Modify: `.gitignore` (add `.tracegate/`, `*.egg-info/`, `.pytest_cache/`)
+- Modify: `.gitignore` (add `.agentgates/`, `*.egg-info/`, `.pytest_cache/`)
 
 **Interfaces:**
 - Consumes: nothing (first task)
-- Produces: installable package `tracegate` with `tracegate.__version__: str = "0.1.0"`; a working `venv/bin/pytest`; a git repo with an initial commit.
+- Produces: installable package `agentgates` with `agentgates.__version__: str = "0.1.0"`; a working `venv/bin/pytest`; a git repo with an initial commit.
 
 - [ ] **Step 1: Init git repo and write packaging files**
 
-`git init` in the project root (this makes `tracegate/` its own repo nested inside the parent folder — intended, it's a standalone portfolio project).
+`git init` in the project root (this makes `agentgates/` its own repo nested inside the parent folder — intended, it's a standalone portfolio project).
 
 `pyproject.toml`:
 
@@ -45,7 +45,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "tracegate"
+name = "agentgates"
 version = "0.1.0"
 description = "The black box flight recorder for AI agents - record every step, detect silent failures, gate your deploys."
 readme = "README.md"
@@ -59,19 +59,19 @@ dependencies = [
 dev = ["pytest>=8"]
 
 [project.scripts]
-tracegate = "tracegate.cli:app"
+agentgates = "agentgates.cli:app"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/tracegate"]
+packages = ["src/agentgates"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 ```
 
-`src/tracegate/__init__.py`:
+`src/agentgates/__init__.py`:
 
 ```python
-"""TraceGate — the black box flight recorder for AI agents."""
+"""AgentGates — the black box flight recorder for AI agents."""
 
 __version__ = "0.1.0"
 ```
@@ -79,7 +79,7 @@ __version__ = "0.1.0"
 Append to `.gitignore`:
 
 ```
-.tracegate/
+.agentgates/
 *.egg-info/
 .pytest_cache/
 ```
@@ -89,11 +89,11 @@ Append to `.gitignore`:
 `tests/test_package.py`:
 
 ```python
-import tracegate
+import agentgates
 
 
 def test_version():
-    assert tracegate.__version__ == "0.1.0"
+    assert agentgates.__version__ == "0.1.0"
 ```
 
 - [ ] **Step 3: Create venv, install, run test**
@@ -104,13 +104,13 @@ venv/bin/pip install -e ".[dev]"
 venv/bin/pytest tests/test_package.py -v
 ```
 
-Expected: 1 passed. (The `tracegate.cli:app` script target doesn't exist yet — that's fine; the entry point is only resolved when the `tracegate` command is run, which happens in Task 7.)
+Expected: 1 passed. (The `agentgates.cli:app` script target doesn't exist yet — that's fine; the entry point is only resolved when the `agentgates` command is run, which happens in Task 7.)
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add pyproject.toml src/ tests/ .gitignore README.md PROPOSAL.md docs/
-git commit -m "chore: scaffold tracegate package (src layout, hatchling, pytest)
+git commit -m "chore: scaffold agentgates package (src layout, hatchling, pytest)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```
@@ -120,12 +120,12 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 2: AgentTrace schema
 
 **Files:**
-- Create: `src/tracegate/schema.py`
+- Create: `src/agentgates/schema.py`
 - Test: `tests/test_schema.py`
 
 **Interfaces:**
 - Consumes: nothing
-- Produces (all Pydantic v2 models in `tracegate.schema`):
+- Produces (all Pydantic v2 models in `agentgates.schema`):
   - `TokenUsage(input_tokens: int = 0, output_tokens: int = 0)`
   - `LLMCallStep(type="llm_call", step_id: str, index: int, timestamp: datetime, model: str, prompt: str, response: str, usage: TokenUsage)`
   - `ToolCallStep(type="tool_call", step_id: str, index: int, timestamp: datetime, tool_name: str, arguments: dict, result: Any = None, error: str | None = None, latency_ms: float | None = None)`
@@ -140,7 +140,7 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 `tests/test_schema.py`:
 
 ```python
-from tracegate.schema import (
+from agentgates.schema import (
     AgentInfo,
     AgentTrace,
     LLMCallStep,
@@ -196,14 +196,14 @@ def test_tool_step_error_fields():
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `venv/bin/pytest tests/test_schema.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'tracegate.schema'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'agentgates.schema'`
 
 - [ ] **Step 3: Write the implementation**
 
-`src/tracegate/schema.py`:
+`src/agentgates/schema.py`:
 
 ```python
-"""The AgentTrace schema — TraceGate's core data model.
+"""The AgentTrace schema — AgentGates's core data model.
 
 The trace schema is the real product: framework adapters normalize into
 this shape, and every detector/report in later phases reads from it.
@@ -285,7 +285,7 @@ Expected: 3 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/schema.py tests/test_schema.py
+git add src/agentgates/schema.py tests/test_schema.py
 git commit -m "feat: AgentTrace schema with discriminated step union
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -296,15 +296,15 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 3: JSONL trace store
 
 **Files:**
-- Create: `src/tracegate/store/__init__.py`
-- Create: `src/tracegate/store/jsonl.py`
+- Create: `src/agentgates/store/__init__.py`
+- Create: `src/agentgates/store/jsonl.py`
 - Test: `tests/test_store_jsonl.py`
 
 **Interfaces:**
 - Consumes: `AgentTrace` from Task 2.
 - Produces:
-  - `tracegate.store.jsonl.JSONLTraceStore(path: Path)` with methods `save(trace: AgentTrace) -> None`, `load(trace_id: str) -> AgentTrace` (raises `KeyError` if missing), `list_traces() -> list[AgentTrace]` (oldest first).
-  - `tracegate.store.default_store() -> JSONLTraceStore` — uses `$TRACEGATE_DIR` or `.tracegate/`, file `traces.jsonl`.
+  - `agentgates.store.jsonl.JSONLTraceStore(path: Path)` with methods `save(trace: AgentTrace) -> None`, `load(trace_id: str) -> AgentTrace` (raises `KeyError` if missing), `list_traces() -> list[AgentTrace]` (oldest first).
+  - `agentgates.store.default_store() -> JSONLTraceStore` — uses `$AGENTGATES_DIR` or `.agentgates/`, file `traces.jsonl`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -313,9 +313,9 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```python
 import pytest
 
-from tracegate.schema import AgentInfo, AgentTrace, TaskSpec
-from tracegate.store import default_store
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.schema import AgentInfo, AgentTrace, TaskSpec
+from agentgates.store import default_store
+from agentgates.store.jsonl import JSONLTraceStore
 
 
 def make_trace(desc: str = "task") -> AgentTrace:
@@ -356,7 +356,7 @@ def test_save_creates_parent_dir(tmp_path):
 
 
 def test_default_store_uses_env(tmp_path, monkeypatch):
-    monkeypatch.setenv("TRACEGATE_DIR", str(tmp_path / "custom"))
+    monkeypatch.setenv("AGENTGATES_DIR", str(tmp_path / "custom"))
     store = default_store()
     assert store.path == tmp_path / "custom" / "traces.jsonl"
 ```
@@ -364,11 +364,11 @@ def test_default_store_uses_env(tmp_path, monkeypatch):
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `venv/bin/pytest tests/test_store_jsonl.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'tracegate.store'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'agentgates.store'`
 
 - [ ] **Step 3: Write the implementation**
 
-`src/tracegate/store/jsonl.py`:
+`src/agentgates/store/jsonl.py`:
 
 ```python
 """Append-only JSONL trace store — the zero-config default."""
@@ -377,7 +377,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tracegate.schema import AgentTrace
+from agentgates.schema import AgentTrace
 
 
 class JSONLTraceStore:
@@ -406,7 +406,7 @@ class JSONLTraceStore:
             ]
 ```
 
-`src/tracegate/store/__init__.py`:
+`src/agentgates/store/__init__.py`:
 
 ```python
 """Local-first trace stores."""
@@ -416,13 +416,13 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.store.jsonl import JSONLTraceStore
 
 TRACES_FILENAME = "traces.jsonl"
 
 
 def default_store() -> JSONLTraceStore:
-    root = Path(os.environ.get("TRACEGATE_DIR", ".tracegate"))
+    root = Path(os.environ.get("AGENTGATES_DIR", ".agentgates"))
     return JSONLTraceStore(root / TRACES_FILENAME)
 ```
 
@@ -434,7 +434,7 @@ Expected: 5 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/store/ tests/test_store_jsonl.py
+git add src/agentgates/store/ tests/test_store_jsonl.py
 git commit -m "feat: JSONL trace store with env-configurable default location
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -445,12 +445,12 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 4: SQLite trace store
 
 **Files:**
-- Create: `src/tracegate/store/sqlite.py`
+- Create: `src/agentgates/store/sqlite.py`
 - Test: `tests/test_store_sqlite.py`
 
 **Interfaces:**
 - Consumes: `AgentTrace` from Task 2.
-- Produces: `tracegate.store.sqlite.SQLiteTraceStore(path: Path)` with the same three methods as `JSONLTraceStore`: `save(trace) -> None` (upsert by `trace_id`), `load(trace_id) -> AgentTrace` (raises `KeyError`), `list_traces() -> list[AgentTrace]` (ordered by `started_at`).
+- Produces: `agentgates.store.sqlite.SQLiteTraceStore(path: Path)` with the same three methods as `JSONLTraceStore`: `save(trace) -> None` (upsert by `trace_id`), `load(trace_id) -> AgentTrace` (raises `KeyError`), `list_traces() -> list[AgentTrace]` (ordered by `started_at`).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -459,8 +459,8 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```python
 import pytest
 
-from tracegate.schema import AgentInfo, AgentTrace, TaskSpec
-from tracegate.store.sqlite import SQLiteTraceStore
+from agentgates.schema import AgentInfo, AgentTrace, TaskSpec
+from agentgates.store.sqlite import SQLiteTraceStore
 
 
 def make_trace(desc: str = "task") -> AgentTrace:
@@ -508,11 +508,11 @@ def test_list_traces_ordered(tmp_path):
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `venv/bin/pytest tests/test_store_sqlite.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'tracegate.store.sqlite'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'agentgates.store.sqlite'`
 
 - [ ] **Step 3: Write the implementation**
 
-`src/tracegate/store/sqlite.py`:
+`src/agentgates/store/sqlite.py`:
 
 ```python
 """SQLite trace store — same interface as JSONL, queryable at scale."""
@@ -522,7 +522,7 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from tracegate.schema import AgentTrace
+from agentgates.schema import AgentTrace
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS traces (
@@ -580,7 +580,7 @@ Expected: 4 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/store/sqlite.py tests/test_store_sqlite.py
+git add src/agentgates/store/sqlite.py tests/test_store_sqlite.py
 git commit -m "feat: SQLite trace store
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -591,28 +591,28 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 5: TraceRecorder
 
 **Files:**
-- Create: `src/tracegate/recorder.py`
-- Modify: `src/tracegate/__init__.py` (re-export public API)
+- Create: `src/agentgates/recorder.py`
+- Modify: `src/agentgates/__init__.py` (re-export public API)
 - Test: `tests/test_recorder.py`
 
 **Interfaces:**
 - Consumes: `AgentTrace`, `TaskSpec`, `AgentInfo`, `LLMCallStep`, `ToolCallStep`, `TokenUsage` (Task 2); `default_store()` (Task 3).
-- Produces: `tracegate.recorder.TraceRecorder`:
+- Produces: `agentgates.recorder.TraceRecorder`:
   - `TraceRecorder(task: str | TaskSpec, framework: str, model: str | None = None, store: object | None = None)` — `store` is any object with `save(trace)`; `None` means `default_store()`.
   - attribute `trace: AgentTrace`
   - `record_llm_call(*, model: str, prompt: str, response: str, input_tokens: int = 0, output_tokens: int = 0) -> LLMCallStep`
   - `record_tool_call(*, tool_name: str, arguments: dict, result=None, error: str | None = None, latency_ms: float | None = None) -> ToolCallStep`
   - `finish() -> AgentTrace` — sets `ended_at`, saves to store, idempotent (second call does not re-save)
   - context manager: `__enter__` returns self, `__exit__` calls `finish()`
-  - Also re-exported as `tracegate.TraceRecorder`.
+  - Also re-exported as `agentgates.TraceRecorder`.
 
 - [ ] **Step 1: Write the failing tests**
 
 `tests/test_recorder.py`:
 
 ```python
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import TaskSpec
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import TaskSpec
 
 
 class FakeStore:
@@ -654,26 +654,26 @@ def test_context_manager_finishes():
 
 
 def test_default_store_used_when_none(tmp_path, monkeypatch):
-    monkeypatch.setenv("TRACEGATE_DIR", str(tmp_path))
+    monkeypatch.setenv("AGENTGATES_DIR", str(tmp_path))
     with TraceRecorder(task="x", framework="test"):
         pass
     assert (tmp_path / "traces.jsonl").exists()
 
 
 def test_public_api_reexport():
-    import tracegate
+    import agentgates
 
-    assert tracegate.TraceRecorder is TraceRecorder
+    assert agentgates.TraceRecorder is TraceRecorder
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `venv/bin/pytest tests/test_recorder.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'tracegate.recorder'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'agentgates.recorder'`
 
 - [ ] **Step 3: Write the implementation**
 
-`src/tracegate/recorder.py`:
+`src/agentgates/recorder.py`:
 
 ```python
 """TraceRecorder — builds an AgentTrace in memory and persists it on finish."""
@@ -683,7 +683,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from tracegate.schema import (
+from agentgates.schema import (
     AgentInfo,
     AgentTrace,
     LLMCallStep,
@@ -691,7 +691,7 @@ from tracegate.schema import (
     TokenUsage,
     ToolCallStep,
 )
-from tracegate.store import default_store
+from agentgates.store import default_store
 
 
 class TraceRecorder:
@@ -763,13 +763,13 @@ class TraceRecorder:
         self.finish()
 ```
 
-Replace `src/tracegate/__init__.py` with:
+Replace `src/agentgates/__init__.py` with:
 
 ```python
-"""TraceGate — the black box flight recorder for AI agents."""
+"""AgentGates — the black box flight recorder for AI agents."""
 
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import (
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import (
     AgentInfo,
     AgentTrace,
     LLMCallStep,
@@ -800,7 +800,7 @@ Expected: 6 passed. Also run full suite: `venv/bin/pytest -v` — all passed.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/recorder.py src/tracegate/__init__.py tests/test_recorder.py
+git add src/agentgates/recorder.py src/agentgates/__init__.py tests/test_recorder.py
 git commit -m "feat: TraceRecorder with context-manager finish and default store
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -811,13 +811,13 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 6: Claude Agent SDK adapter
 
 **Files:**
-- Create: `src/tracegate/adapters/__init__.py` (empty)
-- Create: `src/tracegate/adapters/claude_agent_sdk.py`
+- Create: `src/agentgates/adapters/__init__.py` (empty)
+- Create: `src/agentgates/adapters/claude_agent_sdk.py`
 - Test: `tests/test_adapter_claude.py`
 
 **Interfaces:**
 - Consumes: `TraceRecorder` (Task 5).
-- Produces (`tracegate.adapters.claude_agent_sdk`):
+- Produces (`agentgates.adapters.claude_agent_sdk`):
   - `ClaudeAgentAdapter(recorder: TraceRecorder)` with `handle_message(message: Any) -> None`. Dispatch is on `type(message).__name__` (`AssistantMessage`, `UserMessage`, `ResultMessage`) and duck-typed block attributes — the module must NOT import `claude_agent_sdk`.
   - `record_stream(stream: AsyncIterator, recorder: TraceRecorder) -> AsyncIterator` — async generator that feeds every message through an adapter, yields it unchanged, and calls `recorder.finish()` when the stream ends.
 - Message semantics: `AssistantMessage.content` is a list of blocks — a block with `.text` is assistant text (recorded as one `LLMCallStep` per assistant message, `prompt=""`, model from `message.model` else recorder's model else `"unknown"`); a block with `.name` and `.input` is a tool use (held pending by `block.id`). `UserMessage.content` blocks with `.tool_use_id` are tool results — matched to pending tool uses and recorded as `ToolCallStep` (`block.is_error` truthy → `error=str(block.content)`, else `result=block.content`). `ResultMessage` contributes `metadata["result"]` and `metadata["total_cost_usd"]` when present.
@@ -831,9 +831,9 @@ import asyncio
 from dataclasses import dataclass, field
 from typing import Any
 
-from tracegate.adapters.claude_agent_sdk import ClaudeAgentAdapter, record_stream
-from tracegate.recorder import TraceRecorder
-from tracegate.schema import LLMCallStep, ToolCallStep
+from agentgates.adapters.claude_agent_sdk import ClaudeAgentAdapter, record_stream
+from agentgates.recorder import TraceRecorder
+from agentgates.schema import LLMCallStep, ToolCallStep
 
 
 # Stubs mirroring claude-agent-sdk message/block shapes (name-based dispatch).
@@ -973,17 +973,17 @@ def test_record_stream_yields_and_finishes():
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `venv/bin/pytest tests/test_adapter_claude.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'tracegate.adapters'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'agentgates.adapters'`
 
 - [ ] **Step 3: Write the implementation**
 
-`src/tracegate/adapters/__init__.py`:
+`src/agentgates/adapters/__init__.py`:
 
 ```python
 """Framework adapters that normalize agent events into AgentTrace steps."""
 ```
 
-`src/tracegate/adapters/claude_agent_sdk.py`:
+`src/agentgates/adapters/claude_agent_sdk.py`:
 
 ```python
 """Adapter for the Claude Agent SDK message stream.
@@ -998,7 +998,7 @@ from __future__ import annotations
 import time
 from typing import Any, AsyncIterator
 
-from tracegate.recorder import TraceRecorder
+from agentgates.recorder import TraceRecorder
 
 
 class ClaudeAgentAdapter:
@@ -1098,7 +1098,7 @@ Expected: 7 passed
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/adapters/ tests/test_adapter_claude.py
+git add src/agentgates/adapters/ tests/test_adapter_claude.py
 git commit -m "feat: Claude Agent SDK adapter (duck-typed, no hard dependency)
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -1109,14 +1109,14 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 7: CLI — `list` and `show`
 
 **Files:**
-- Create: `src/tracegate/cli.py`
+- Create: `src/agentgates/cli.py`
 - Test: `tests/test_cli.py`
 
 **Interfaces:**
 - Consumes: `default_store()`, `JSONLTraceStore` (Task 3); `AgentTrace` (Task 2).
-- Produces: Typer app `tracegate.cli.app` (referenced by the `tracegate` console script from Task 1) with commands:
-  - `tracegate list [--store-dir PATH]` — one line per trace: `trace_id  started_at  n_steps  task description`. `--store-dir` defaults to env `TRACEGATE_DIR` else `.tracegate`.
-  - `tracegate show TRACE_ID [--store-dir PATH]` — header (trace id, task, framework/model, started/ended) plus one line per step; exits code 1 with `trace not found: <id>` on stderr-style output for missing ids.
+- Produces: Typer app `agentgates.cli.app` (referenced by the `agentgates` console script from Task 1) with commands:
+  - `agentgates list [--store-dir PATH]` — one line per trace: `trace_id  started_at  n_steps  task description`. `--store-dir` defaults to env `AGENTGATES_DIR` else `.agentgates`.
+  - `agentgates show TRACE_ID [--store-dir PATH]` — header (trace id, task, framework/model, started/ended) plus one line per step; exits code 1 with `trace not found: <id>` on stderr-style output for missing ids.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1125,9 +1125,9 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ```python
 from typer.testing import CliRunner
 
-from tracegate.cli import app
-from tracegate.recorder import TraceRecorder
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.cli import app
+from agentgates.recorder import TraceRecorder
+from agentgates.store.jsonl import JSONLTraceStore
 
 runner = CliRunner()
 
@@ -1173,14 +1173,14 @@ def test_show_missing_trace_exits_nonzero(tmp_path):
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `venv/bin/pytest tests/test_cli.py -v`
-Expected: FAIL with `ModuleNotFoundError: No module named 'tracegate.cli'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'agentgates.cli'`
 
 - [ ] **Step 3: Write the implementation**
 
-`src/tracegate/cli.py`:
+`src/agentgates/cli.py`:
 
 ```python
-"""TraceGate CLI: record, show, list."""
+"""AgentGates CLI: record, show, list."""
 
 from __future__ import annotations
 
@@ -1188,14 +1188,14 @@ from pathlib import Path
 
 import typer
 
-from tracegate.schema import AgentTrace, LLMCallStep, ToolCallStep
-from tracegate.store import TRACES_FILENAME
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.schema import AgentTrace, LLMCallStep, ToolCallStep
+from agentgates.store import TRACES_FILENAME
+from agentgates.store.jsonl import JSONLTraceStore
 
 app = typer.Typer(help="The black box flight recorder for AI agents.")
 
 StoreDirOption = typer.Option(
-    Path(".tracegate"), "--store-dir", envvar="TRACEGATE_DIR",
+    Path(".agentgates"), "--store-dir", envvar="AGENTGATES_DIR",
     help="Directory holding traces.jsonl.",
 )
 
@@ -1253,12 +1253,12 @@ def show(trace_id: str, store_dir: Path = StoreDirOption) -> None:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `venv/bin/pytest tests/test_cli.py -v`
-Expected: 4 passed. Also sanity-check the console script: `venv/bin/tracegate --help` prints the app help with `list` and `show`.
+Expected: 4 passed. Also sanity-check the console script: `venv/bin/agentgates --help` prints the app help with `list` and `show`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/cli.py tests/test_cli.py
+git add src/agentgates/cli.py tests/test_cli.py
 git commit -m "feat: CLI list and show commands
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
@@ -1269,14 +1269,14 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ### Task 8: CLI `record` + demo example + README quickstart
 
 **Files:**
-- Modify: `src/tracegate/cli.py` (add `record` command)
+- Modify: `src/agentgates/cli.py` (add `record` command)
 - Create: `examples/demo_agent.py`
 - Modify: `README.md` (quickstart)
 - Test: `tests/test_cli.py` (append tests)
 
 **Interfaces:**
-- Consumes: `app`, `_store` (Task 7); `TraceRecorder` (Task 5); env-var contract `TRACEGATE_DIR` (Task 3).
-- Produces: `tracegate record SCRIPT [ARGS...] [--store-dir PATH]` — runs `sys.executable SCRIPT ARGS...` as a subprocess with `TRACEGATE_DIR` set to the store dir, propagates the script's exit code, and on success prints how many traces the store now holds. `examples/demo_agent.py` — runnable simulated agent (no API key needed) that records a 5-step trace via `TraceRecorder`.
+- Consumes: `app`, `_store` (Task 7); `TraceRecorder` (Task 5); env-var contract `AGENTGATES_DIR` (Task 3).
+- Produces: `agentgates record SCRIPT [ARGS...] [--store-dir PATH]` — runs `sys.executable SCRIPT ARGS...` as a subprocess with `AGENTGATES_DIR` set to the store dir, propagates the script's exit code, and on success prints how many traces the store now holds. `examples/demo_agent.py` — runnable simulated agent (no API key needed) that records a 5-step trace via `TraceRecorder`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1286,7 +1286,7 @@ Append to `tests/test_cli.py`:
 def test_record_runs_script_and_stores_trace(tmp_path):
     script = tmp_path / "agent.py"
     script.write_text(
-        "from tracegate import TraceRecorder\n"
+        "from agentgates import TraceRecorder\n"
         "with TraceRecorder(task='demo', framework='test') as rec:\n"
         "    rec.record_llm_call(model='m', prompt='p', response='r')\n"
     )
@@ -1315,7 +1315,7 @@ Expected: the two new tests FAIL (`record` command does not exist → exit code 
 
 - [ ] **Step 3: Write the implementation**
 
-Add to `src/tracegate/cli.py` (imports `os`, `subprocess`, `sys` at top of file alongside existing imports):
+Add to `src/agentgates/cli.py` (imports `os`, `subprocess`, `sys` at top of file alongside existing imports):
 
 ```python
 import os
@@ -1329,8 +1329,8 @@ def record(
     script: Path,
     store_dir: Path = StoreDirOption,
 ) -> None:
-    """Run a Python script with TraceGate recording enabled."""
-    env = {**os.environ, "TRACEGATE_DIR": str(store_dir)}
+    """Run a Python script with AgentGates recording enabled."""
+    env = {**os.environ, "AGENTGATES_DIR": str(store_dir)}
     result = subprocess.run(
         [sys.executable, str(script), *ctx.args], env=env
     )
@@ -1346,11 +1346,11 @@ def record(
 ```python
 """Simulated 5-step agent run — records a trace without any API key.
 
-Run:  tracegate record examples/demo_agent.py
-Then: tracegate list && tracegate show <trace_id>
+Run:  agentgates record examples/demo_agent.py
+Then: agentgates list && agentgates show <trace_id>
 """
 
-from tracegate import TraceRecorder
+from agentgates import TraceRecorder
 
 with TraceRecorder(
     task="Find the cheapest flight SFO->NYC under $500 next Friday",
@@ -1391,11 +1391,11 @@ print(f"recorded trace {rec.trace.trace_id} with {len(rec.trace.steps)} steps")
 Replace `README.md` with:
 
 ```markdown
-# TraceGate
+# AgentGates
 
 **The black box flight recorder for AI agents** — record every step, detect silent failures, gate your deploys.
 
-An agent that is 95% reliable per step is only ~59% reliable across a 10-step workflow. TraceGate records what your agent actually did, step by step, so you can see where runs go wrong — and (coming next) detect silent failures and gate deploys in CI.
+An agent that is 95% reliable per step is only ~59% reliable across a 10-step workflow. AgentGates records what your agent actually did, step by step, so you can see where runs go wrong — and (coming next) detect silent failures and gate deploys in CI.
 
 ## Status
 
@@ -1405,9 +1405,9 @@ Phase 1 (core spine): **AgentTrace schema, recorder, Claude Agent SDK adapter, l
 
 ```bash
 pip install -e .
-tracegate record examples/demo_agent.py   # run a script with recording enabled
-tracegate list                            # list recorded traces
-tracegate show <trace_id>                 # step-by-step timeline of one run
+agentgates record examples/demo_agent.py   # run a script with recording enabled
+agentgates list                            # list recorded traces
+agentgates show <trace_id>                 # step-by-step timeline of one run
 ```
 
 ## Recording your own agent
@@ -1415,7 +1415,7 @@ tracegate show <trace_id>                 # step-by-step timeline of one run
 Any Python agent, manually:
 
 ```python
-from tracegate import TraceRecorder
+from agentgates import TraceRecorder
 
 with TraceRecorder(task="user's task", framework="my-agent") as rec:
     rec.record_llm_call(model="claude-sonnet-5", prompt="...", response="...")
@@ -1426,15 +1426,15 @@ Claude Agent SDK, streaming:
 
 ```python
 from claude_agent_sdk import query
-from tracegate import TraceRecorder
-from tracegate.adapters.claude_agent_sdk import record_stream
+from agentgates import TraceRecorder
+from agentgates.adapters.claude_agent_sdk import record_stream
 
 recorder = TraceRecorder(task=prompt, framework="claude-agent-sdk")
 async for message in record_stream(query(prompt=prompt), recorder):
     ...  # use messages exactly as before; the trace saves itself
 ```
 
-Traces land in `.tracegate/traces.jsonl` (override with `TRACEGATE_DIR`). Local-first: nothing leaves your machine.
+Traces land in `.agentgates/traces.jsonl` (override with `AGENTGATES_DIR`). Local-first: nothing leaves your machine.
 ```
 
 - [ ] **Step 4: Run the full suite and the demo end-to-end**
@@ -1445,15 +1445,15 @@ venv/bin/pytest -v
 Expected: all tests pass (package 1 + schema 3 + jsonl 5 + sqlite 4 + recorder 6 + adapter 7 + cli 6 = 32).
 
 ```bash
-venv/bin/tracegate record examples/demo_agent.py
-venv/bin/tracegate list
+venv/bin/agentgates record examples/demo_agent.py
+venv/bin/agentgates list
 ```
-Expected: demo prints its trace id; `list` shows 1 trace with "Find the cheapest flight". Then `venv/bin/tracegate show <that id>` renders 5 steps. Clean up: `rm -rf .tracegate`.
+Expected: demo prints its trace id; `list` shows 1 trace with "Find the cheapest flight". Then `venv/bin/agentgates show <that id>` renders 5 steps. Clean up: `rm -rf .agentgates`.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/tracegate/cli.py examples/ README.md tests/test_cli.py
+git add src/agentgates/cli.py examples/ README.md tests/test_cli.py
 git commit -m "feat: CLI record command, demo agent, README quickstart
 
 Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"

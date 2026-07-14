@@ -1,8 +1,8 @@
 import pytest
 
-from tracegate.schema import AgentInfo, AgentTrace, TaskSpec
-from tracegate.store import default_store
-from tracegate.store.jsonl import JSONLTraceStore
+from agentgates.schema import AgentInfo, AgentTrace, TaskSpec
+from agentgates.store import default_store
+from agentgates.store.jsonl import JSONLTraceStore
 
 
 def make_trace(desc: str = "task") -> AgentTrace:
@@ -43,6 +43,6 @@ def test_save_creates_parent_dir(tmp_path):
 
 
 def test_default_store_uses_env(tmp_path, monkeypatch):
-    monkeypatch.setenv("TRACEGATE_DIR", str(tmp_path / "custom"))
+    monkeypatch.setenv("AGENTGATES_DIR", str(tmp_path / "custom"))
     store = default_store()
     assert store.path == tmp_path / "custom" / "traces.jsonl"

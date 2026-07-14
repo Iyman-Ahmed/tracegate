@@ -1,5 +1,5 @@
-name: "TraceGate CI"
-description: "Replay a TraceGate suite against your agent and fail the build when the reliability score drops."
+name: "AgentGates CI"
+description: "Replay a AgentGates suite against your agent and fail the build when the reliability score drops."
 branding:
   icon: "shield"
   color: "orange"
@@ -28,12 +28,22 @@ runs:
     - uses: actions/setup-python@v5
       with:
         python-version: ${{ inputs.python-version }}
-    - run: pip install tracegate "${{ inputs.install }}"
+    - name: Install AgentGates and project
+      env:
+        INSTALL: ${{ inputs.install }}
+      run: |
+        pip install "git+https://github.com/Iyman-Ahmed/agentgates"
+        pip install "$INSTALL"
       shell: bash
-    - run: |
+    - name: Run the reliability gate
+      env:
+        SUITE: ${{ inputs.suite }}
+        RUNNER: ${{ inputs.runner }}
+        THRESHOLD: ${{ inputs.threshold }}
+      run: |
         ARGS=""
-        if [ -n "${{ inputs.threshold }}" ]; then
-          ARGS="--threshold ${{ inputs.threshold }}"
+        if [ -n "$THRESHOLD" ]; then
+          ARGS="--threshold $THRESHOLD"
         fi
-        tracegate ci --suite "${{ inputs.suite }}" --runner "${{ inputs.runner }}" $ARGS
+        agentgates ci --suite "$SUITE" --runner "$RUNNER" $ARGS
       shell: bash

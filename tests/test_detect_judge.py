@@ -1,6 +1,6 @@
 import json
 
-from tracegate.detect.judge import CachedJudge, extract_json
+from agentgates.detect.judge import CachedJudge, extract_json
 
 
 class CountingJudge:

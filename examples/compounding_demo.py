@@ -1,4 +1,4 @@
-"""The compounding-error demo — TraceGate's flagship pitch, executable.
+"""The compounding-error demo — AgentGates's flagship pitch, executable.
 
 An agent that is 95% reliable per step is only ~59% reliable across a
 10-step workflow. This script simulates exactly that: 10 runs of a 10-step
@@ -6,7 +6,7 @@ agent where each step silently fails 5% of the time. A failed step doesn't
 throw — the agent blindly retries, gives up quietly, and still ends the run
 with "Task complete." The output *looks* fine every time.
 
-TraceGate's detectors read the trace and pinpoint the originating step.
+AgentGates's detectors read the trace and pinpoint the originating step.
 
 Run:  python examples/compounding_demo.py
 """
@@ -16,9 +16,9 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass, field
 
-from tracegate import TraceRecorder
-from tracegate.detect import Finding, default_detectors, run_detectors
-from tracegate.schema import AgentTrace
+from agentgates import TraceRecorder
+from agentgates.detect import Finding, default_detectors, run_detectors
+from agentgates.schema import AgentTrace
 
 STEPS = 10
 PER_STEP_RELIABILITY = 0.95
@@ -76,7 +76,7 @@ def main() -> None:
     failed = sum(1 for o in outcomes if o.injected_step is not None)
     print(f"{STEPS}-step agent, {PER_STEP_RELIABILITY:.0%} reliable per step, {len(outcomes)} runs")
     print(f"expected failure rate: {1 - PER_STEP_RELIABILITY ** STEPS:.0%}\n")
-    print(f"{'run':<5} {'agent says':<18} {'reality':<22} traceGate verdict")
+    print(f"{'run':<5} {'agent says':<18} {'reality':<22} AgentGates verdict")
     for n, o in enumerate(outcomes, 1):
         agent_says = '"Task complete."'
         if o.injected_step is None:
